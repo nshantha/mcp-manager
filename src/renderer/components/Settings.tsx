@@ -3,16 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Settings as SettingsIcon, Shield, Bell, Palette } from 'lucide-react'
+import { useTheme } from './ThemeProvider'
 
 interface AppSettings {
-  theme: 'light' | 'dark'
   autoUpdate: boolean
   notifications: boolean
 }
 
 export function Settings() {
+  const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState<AppSettings>({
-    theme: 'light',
     autoUpdate: true,
     notifications: true
   })
@@ -87,16 +87,16 @@ export function Settings() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant={settings.theme === 'light' ? 'default' : 'outline'}
+                  variant={theme === 'light' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => updateSetting('theme', 'light')}
+                  onClick={() => setTheme('light')}
                 >
                   Light
                 </Button>
                 <Button
-                  variant={settings.theme === 'dark' ? 'default' : 'outline'}
+                  variant={theme === 'dark' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => updateSetting('theme', 'dark')}
+                  onClick={() => setTheme('dark')}
                 >
                   Dark
                 </Button>

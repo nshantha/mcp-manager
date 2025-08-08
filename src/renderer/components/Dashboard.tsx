@@ -17,10 +17,22 @@ export function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true)
+      
+      if (!window.electronAPI) {
+        console.error('Electron API not available')
+        return
+      }
+
+      console.log('Loading dashboard data...')
+      
       const [toolsData, serversData] = await Promise.all([
-        window.electronAPI?.detectAITools() || [],
-        window.electronAPI?.getVettedServers() || []
+        window.electronAPI.detectAITools(),
+        window.electronAPI.getVettedServers()
       ])
+      
+      console.log('Tools detected:', toolsData)
+      console.log('Servers loaded:', serversData)
+      
       setAiTools(toolsData)
       setMcpServers(serversData)
     } catch (error) {

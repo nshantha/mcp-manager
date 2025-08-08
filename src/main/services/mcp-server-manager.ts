@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { homedir } from 'os'
 
 export interface MCPServer {
   id: string
@@ -234,7 +235,13 @@ export class MCPServerManager {
 
   private getConfigPath(): string {
     // Store config in user's home directory
-    const { homedir } = require('os')
-    return join(homedir(), '.mcp-manager', 'config.json')
+    const configDir = join(homedir(), '.mcp-manager')
+    
+    // Ensure directory exists
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true })
+    }
+    
+    return join(configDir, 'config.json')
   }
 }

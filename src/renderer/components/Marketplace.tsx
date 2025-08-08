@@ -29,16 +29,27 @@ export function Marketplace() {
   const handleInstall = async (serverId: string) => {
     try {
       setInstalling(serverId)
-      const result = await window.electronAPI?.installMCPServer(serverId, {})
+      console.log('Installing server:', serverId)
+      
+      if (!window.electronAPI) {
+        console.error('Electron API not available')
+        return
+      }
+      
+      const result = await window.electronAPI.installMCPServer(serverId, {})
+      console.log('Install result:', result)
       
       if (result?.success) {
+        console.log('Installation successful, refreshing server list')
         // Refresh the server list to show updated installation status
         await loadServers()
       } else {
         console.error('Installation failed:', result?.message)
+        alert(`Installation failed: ${result?.message || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to install server:', error)
+      alert(`Failed to install server: ${error}`)
     } finally {
       setInstalling(null)
     }

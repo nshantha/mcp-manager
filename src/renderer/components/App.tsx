@@ -3,6 +3,7 @@ import { Layout } from './Layout'
 import { Dashboard } from './Dashboard'
 import { Marketplace } from './Marketplace'
 import { Settings } from './Settings'
+import { ThemeProvider } from './ThemeProvider'
 
 type ViewType = 'dashboard' | 'marketplace' | 'settings'
 
@@ -23,8 +24,10 @@ export function App() {
   }
 
   return (
-    <Layout currentView={currentView} onViewChange={setCurrentView}>
-      {renderCurrentView()}
-    </Layout>
+    <ThemeProvider>
+      <Layout currentView={currentView} onViewChange={setCurrentView}>
+        {renderCurrentView()}
+      </Layout>
+    </ThemeProvider>
   )
 }

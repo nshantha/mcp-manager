@@ -17,28 +17,39 @@ export class AIToolDetector {
   private readonly toolConfigs = {
     'claude-code': {
       displayName: 'Claude Code',
-      executable: 'claude',
+      executable: ['claude'],
       configPaths: [
         join(homedir(), '.config', 'claude', 'claude.json'),
         join(homedir(), '.claude', 'config.json')
-      ]
+      ],
+      appPaths: []
     },
     'vscode': {
       displayName: 'Visual Studio Code',
-      executable: 'code',
+      executable: ['code'],
       configPaths: [
         join(homedir(), 'Library', 'Application Support', 'Code', 'User', 'settings.json'), // macOS
         join(homedir(), '.config', 'Code', 'User', 'settings.json'), // Linux
         join(homedir(), 'AppData', 'Roaming', 'Code', 'User', 'settings.json') // Windows
+      ],
+      appPaths: [
+        '/Applications/Visual Studio Code.app', // macOS
+        '/usr/share/code', // Linux
+        join(homedir(), 'AppData', 'Local', 'Programs', 'Microsoft VS Code') // Windows
       ]
     },
     'cursor': {
       displayName: 'Cursor',
-      executable: 'cursor',
+      executable: ['cursor'],
       configPaths: [
         join(homedir(), 'Library', 'Application Support', 'Cursor', 'User', 'settings.json'), // macOS
         join(homedir(), '.config', 'Cursor', 'User', 'settings.json'), // Linux
         join(homedir(), 'AppData', 'Roaming', 'Cursor', 'User', 'settings.json') // Windows
+      ],
+      appPaths: [
+        '/Applications/Cursor.app', // macOS
+        '/usr/share/cursor', // Linux
+        join(homedir(), 'AppData', 'Local', 'Programs', 'Cursor') // Windows
       ]
     }
   }
@@ -71,6 +82,15 @@ export class AIToolDetector {
         tool.version = await this.getVersion(executable, toolName)
       }
 
+      // Check for application installations (even if executable not in PATH)
+      if (!tool.detected) {
+        const appPath = this.findAppPath(config.appPaths)
+        if (appPath) {
+          tool.detected = true
+          tool.executable = appPath
+        }
+      }
+
       // Check for config files
       const configPath = this.findConfigPath(config.configPaths)
       if (configPath) {
@@ -88,12 +108,24 @@ export class AIToolDetector {
     return tool
   }
 
-  private async findExecutable(executableName: string): Promise<string | null> {
-    try {
-      return await which(executableName)
-    } catch {
-      return null
+  private async findExecutable(executableNames: string[]): Promise<string | null> {
+    for (const executableName of executableNames) {
+      try {
+        return await which(executableName)
+      } catch {
+        // Continue to next executable name
+      }
     }
+    return null
+  }
+
+  private findAppPath(appPaths: string[]): string | null {
+    for (const path of appPaths) {
+      if (existsSync(path)) {
+        return path
+      }
+    }
+    return null
   }
 
   private findConfigPath(configPaths: string[]): string | null {
