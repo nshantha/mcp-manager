@@ -16,3 +16,26 @@ export interface WindowCreationByIPC {
   window(): BrowserWindowOrNull
   callback(window: BrowserWindow, event: IpcMainInvokeEvent): void
 }
+
+export type ViewType = 'main' | 'dashboard' | 'marketplace' | 'settings'
+
+export interface AITool {
+  name: 'claude-code' | 'vscode' | 'cursor'
+  displayName: string
+  detected: boolean
+  configPath?: string
+  version?: string
+  executable?: string
+}
+
+export interface MCPServer {
+  id: string
+  name: string
+  company: 'github' | 'notion' | 'slack' | 'linear' | 'anthropic'
+  description: string
+  packageName: string
+  installed: boolean
+  enabledTools: string[]
+  requiresAuth: boolean
+  version?: string
+}
