@@ -3,12 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { CheckCircle, Download, Loader2, Shield } from 'lucide-react'
+import { ServerInstructionsDialog } from './ServerInstructionsDialog'
 import type { MCPServer } from '../../shared/types'
 
 export function Marketplace() {
   const [servers, setServers] = useState<MCPServer[]>([])
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<string | null>(null)
+  const [configDialogServerId, setConfigDialogServerId] = useState<string | null>(null)
+  const [configDialogServerName, setConfigDialogServerName] = useState<string>('')
 
   useEffect(() => {
     loadServers()
@@ -107,10 +110,21 @@ export function Marketplace() {
             server={server} 
             onInstall={() => handleInstall(server.id)}
             onUninstall={() => handleUninstall(server.id)}
+            onConfigure={() => {
+              setConfigDialogServerId(server.id)
+              setConfigDialogServerName(server.name)
+            }}
             installing={installing === server.id}
           />
         ))}
       </div>
+
+      <ServerInstructionsDialog
+        serverId={configDialogServerId}
+        serverName={configDialogServerName}
+        isOpen={configDialogServerId !== null}
+        onClose={() => setConfigDialogServerId(null)}
+      />
     </div>
   )
 }
@@ -119,10 +133,11 @@ interface ServerCardProps {
   server: MCPServer
   onInstall: () => void
   onUninstall: () => void
+  onConfigure: () => void
   installing: boolean
 }
 
-function ServerCard({ server, onInstall, onUninstall, installing }: ServerCardProps) {
+function ServerCard({ server, onInstall, onUninstall, onConfigure, installing }: ServerCardProps) {
   const getCompanyBadgeColor = (company: string) => {
     const colors = {
       github: 'bg-gray-900 text-white',
@@ -219,10 +234,7 @@ function ServerCard({ server, onInstall, onUninstall, installing }: ServerCardPr
                 variant="outline" 
                 size="sm" 
                 className="w-full"
-                onClick={() => {
-                  // Navigate to configuration
-                  console.log('Configure server:', server.id)
-                }}
+                onClick={onConfigure}
               >
                 Configure
               </Button>

@@ -89,6 +89,24 @@ export function setupIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle('get-server-configuration', async (_, serverId: string) => {
+    try {
+      return await serverManager.getServerConfiguration(serverId)
+    } catch (error) {
+      console.error(`Failed to get server configuration for ${serverId}:`, error)
+      return { server: null, status: { installed: false, configuredTools: [], authRequired: false, authConfigured: false } }
+    }
+  })
+
+  ipcMain.handle('configure-server-auth', async (_, serverId: string, authConfig: Record<string, string>) => {
+    try {
+      return await serverManager.configureServerAuth(serverId, authConfig)
+    } catch (error) {
+      console.error(`Failed to configure server auth for ${serverId}:`, error)
+      return { success: false, message: 'Authentication configuration failed' }
+    }
+  })
+
   // Settings Management
   ipcMain.handle('get-app-settings', async () => {
     return {
@@ -101,5 +119,27 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('update-app-settings', async (_, settings: any) => {
     console.log('Updating app settings:', settings)
     return { success: true }
+  })
+
+  ipcMain.handle('open-config-file', async (_, filePath: string) => {
+    try {
+      const { shell } = require('electron')
+      await shell.openPath(filePath)
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to open config file:', error)
+      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+
+  ipcMain.handle('reveal-config-file', async (_, filePath: string) => {
+    try {
+      const { shell } = require('electron')
+      shell.showItemInFolder(filePath)
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to reveal config file:', error)
+      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+    }
   })
 }

@@ -9,7 +9,7 @@ Universal MCP Manager is a secure, cross-platform Electron desktop application t
 **"Install trusted MCP servers once, use everywhere safely."**
 
 - **Vetted Company Servers Only:** GitHub, Notion, Atlassian, Slack, Linear (no community servers)
-- **Security-First Vetting:** Malicious code detection before marketplace inclusion
+- **Security-First Vetting:** Malicious code detection before marketplace inclusion  
 - **Universal Configuration:** One setup works across Claude Code, VS Code, Cursor
 - **Enterprise Security:** OAuth + OS keychain for credential management
 
@@ -19,8 +19,9 @@ Universal MCP Manager is a secure, cross-platform Electron desktop application t
 - **AI Tool Detection**: Automatically detects installed AI development tools (Claude Code, VS Code, Cursor)
 - **Server Health Panel**: Real-time status of installed MCP servers
 - **Quick Actions**: Install/uninstall popular servers with one click
+- **Token Management**: Secure API token configuration with validation
 
-### 🏪 Marketplace
+### 🏪 Marketplace  
 - **Curated Server Library**: Only vetted servers from trusted companies
 - **One-Click Installation**: Install servers with default secure configurations
 - **Company Integration**: GitHub, Notion, Slack, Linear, and Anthropic servers
@@ -32,20 +33,100 @@ Universal MCP Manager is a secure, cross-platform Electron desktop application t
 - **Notification Management**: Control update and status notifications
 - **Auto-Update Control**: Manage automatic security updates
 
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18 or later
+- npm or yarn package manager
+
+### Installation & Development
+
+```bash
+# Clone and install
+git clone <repository-url>
+cd mcp-manager
+npm install
+
+# Start development
+npm run dev
+
+# Build for production  
+npm run build
+```
+
+## 📁 Project Structure
+
+```
+mcp-manager/
+├── 📁 src/                          # Source code
+│   ├── main/                        # Main process (Node.js)
+│   │   ├── services/                # Backend services
+│   │   └── windows/                 # Window management
+│   ├── renderer/                    # Renderer process (React)
+│   │   ├── components/              # React components
+│   │   └── screens/                 # Screen components
+│   ├── preload/                     # Preload scripts
+│   └── shared/                      # Shared utilities
+├── 📁 test/                         # Test files
+│   ├── test-github-mcp.js           # GitHub MCP testing
+│   ├── test-integration.js          # Integration tests  
+│   ├── troubleshoot-claude-mcp.js   # Debugging scripts
+│   └── verify-mvp.js                # MVP verification
+├── 📁 project_documentation/        # Documentation
+│   ├── CONFIGURE_FUNCTIONALITY.md   # Configuration guide
+│   ├── GITHUB_MCP_TEST_GUIDE.md     # Testing instructions
+│   ├── TOKEN_MANAGEMENT.md          # Token management
+│   └── MVP_PLAN.md                  # Project planning
+├── 📁 scripts/                      # Build & utility scripts
+│   └── build/                       # Build configuration
+├── 📦 Configuration Files
+│   ├── package.json                 # Dependencies & scripts
+│   ├── tsconfig.json               # TypeScript config
+│   ├── electron.vite.config.ts     # Build configuration
+│   └── biome.json                  # Code linting
+└── 📖 README.md                    # This file
+```
+
+## 🔧 Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Build for production |
+| `npm run prebuild` | Clean and compile app |
+| `npm run clean:dev` | Clean development artifacts |
+| `npm run lint` | Run code linting |
+| `npm run lint:fix` | Fix linting issues automatically |
+
+## 🧪 Testing
+
+Run the comprehensive test suite:
+
+```bash
+# Test GitHub MCP functionality
+node test/test-github-mcp.js
+
+# Verify MVP requirements  
+node test/verify-mvp.js
+
+# Troubleshoot Claude Code integration
+node test/troubleshoot-claude-mcp.js
+```
+
 ## 🔐 Security Features
 
 - **Context Isolation**: Secure IPC communication between processes
-- **Vetted Servers Only**: No community servers, only trusted company implementations
-- **OAuth Integration**: Secure credential storage using OS keychain
+- **Vetted Servers Only**: No community servers, only trusted company implementations  
+- **Token Validation**: Smart detection of placeholder vs. real API tokens
+- **Multi-Tool Sync**: Secure configuration across Claude Code, VS Code, Cursor
 - **CSP Protection**: Content Security Policy headers prevent XSS attacks
-- **Dependency Validation**: Only trusted dependencies can execute post-install scripts
 
-## 🛠️ Technical Architecture
+## 🛠️ Architecture
 
 ### Backend Services
-- **AI Tool Detector**: Cross-platform detection using `which` and filesystem checks
-- **MCP Server Manager**: Official `@modelcontextprotocol/sdk` integration
-- **Secure IPC Handlers**: Context-isolated communication bridge
+- **AI Tool Detector**: Cross-platform detection using filesystem checks
+- **MCP Server Manager**: Official `@modelcontextprotocol/sdk` integration  
+- **Token Management**: Secure API token storage and validation
 
 ### Frontend Stack
 - **React 19** with TypeScript 5 for type-safe UI development
@@ -53,194 +134,48 @@ Universal MCP Manager is a secure, cross-platform Electron desktop application t
 - **Electron Vite** for fast builds and hot reload
 - **Lucide React** for consistent iconography
 
-### Security Libraries
-- **@modelcontextprotocol/sdk**: Official MCP TypeScript SDK (v1.17.2)
-- **which**: Cross-platform executable detection (v5.0.0)
-- **detect-installed**: Package installation verification (v2.0.4)
+## 📋 Current Status: ✅ MVP Complete
 
-## 🚀 Getting Started
+### ✅ Implemented Features
+- [x] **Window Management** - Resizable Electron window (1200×800)
+- [x] **Clean UI** - Modern design with professional layout
+- [x] **Token Management** - In-app secure token configuration
+- [x] **Authentication Detection** - Smart placeholder vs. real token detection
+- [x] **Multi-Tool Configuration** - Updates Claude Code, VS Code, Cursor configs
+- [x] **GitHub MCP Server** - Fully tested with 26+ repositories
+- [x] **Real-time Status** - Live authentication and server status
 
-### Prerequisites
-- Node.js 18 or later
-- npm or yarn package manager
-- Git for version control
+### 🧪 Testing Status
+- [x] **GitHub MCP Server** - ✅ Working with personal access token
+- [x] **Configuration Files** - ✅ All AI tools configured
+- [x] **Repository Access** - ✅ 26+ GitHub repositories accessible
+- [x] **Authentication** - ✅ Valid token verification
 
-### Installation
+## 📖 Documentation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-org/universal-mcp-manager.git
-   cd universal-mcp-manager
-   ```
+Detailed documentation is available in the `project_documentation/` folder:
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-### Building for Production
-
-```bash
-# Build for current platform
-npm run build
-
-# Build for specific platforms
-npm run build:mac     # macOS
-npm run build:win     # Windows
-npm run build:linux   # Linux
-```
-
-## 📋 Available Scripts
-
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm run clean` - Clean build artifacts
-- `npm run lint` - Run code linting
-- `npm run lint:fix` - Fix linting issues automatically
-
-## 🏗️ Development
-
-### Project Structure
-
-```
-src/
-├── main/                         # Main process (Node.js)
-│   ├── main.ts                   # Electron main entry point
-│   ├── ipc-handlers.ts          # IPC message handlers
-│   └── services/                # Backend services
-│       ├── ai-tool-detector.ts  # AI tool detection
-│       └── mcp-server-manager.ts # MCP server management
-├── renderer/                    # Renderer process (React)
-│   ├── components/              # React components
-│   │   ├── Dashboard.tsx        # Main dashboard
-│   │   ├── Marketplace.tsx      # Server marketplace
-│   │   ├── Settings.tsx         # App settings
-│   │   └── ui/                  # Reusable UI components
-│   └── styles/                  # CSS and styling
-├── preload/                     # Preload scripts
-│   └── index.ts                 # Secure IPC bridge
-└── shared/                      # Shared types and utilities
-    └── types.ts                 # TypeScript type definitions
-```
-
-### Adding New MCP Servers
-
-1. Add server definition to `mcp-server-manager.ts`:
-   ```typescript
-   {
-     id: 'new-server-id',
-     name: 'Server Name',
-     company: 'company-name',
-     description: 'Server description',
-     packageName: '@company/mcp-server-package',
-     requiresAuth: true
-   }
-   ```
-
-2. Update company badge colors in UI components
-3. Test installation and configuration flows
-
-### Security Guidelines
-
-- **Never disable security features** like context isolation or CSP
-- **Validate all user inputs** before processing
-- **Use official libraries** for MCP server communication
-- **Store credentials securely** using OS keychain APIs
-- **Review dependencies regularly** for security vulnerabilities
-
-## 🧪 Testing
-
-The application includes comprehensive testing for:
-- AI tool detection across different platforms
-- MCP server installation and management
-- Secure IPC communication
-- UI component functionality
-
-Run tests with:
-```bash
-npm test
-```
-
-## 📦 Supported Platforms
-
-- **macOS**: 10.15+ (Catalina and later)
-- **Windows**: 10/11 (x64)
-- **Linux**: Ubuntu 18.04+ / Debian 10+ / Fedora 32+
-
-## 🔧 Configuration
-
-### Environment Variables
-
-- `NODE_ENV`: Set to `development` or `production`
-- `ELECTRON_IS_DEV`: Enables development features
-
-### Build Configuration
-
-The application uses `electron-builder` for packaging with platform-specific configurations defined in `electron-builder.ts`.
+- **[Configure Functionality](project_documentation/CONFIGURE_FUNCTIONALITY.md)** - Configuration features
+- **[GitHub MCP Testing](project_documentation/GITHUB_MCP_TEST_GUIDE.md)** - Testing guide  
+- **[Token Management](project_documentation/TOKEN_MANAGEMENT.md)** - Security implementation
+- **[Implementation Notes](project_documentation/IMPLEMENTATION_NOTES.md)** - Technical details
 
 ## 🤝 Contributing
 
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Make your changes** following the coding standards
-4. **Run tests** and ensure they pass
-5. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-6. **Push to the branch** (`git push origin feature/amazing-feature`)
-7. **Open a Pull Request**
-
-### Code Style
-
-- **TypeScript** for type safety
-- **ESLint + Biome** for code linting and formatting
-- **Conventional Commits** for commit messages
-- **Security-first** approach for all features
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following the coding standards  
+4. Run tests and ensure they pass
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **Documentation**: Check the `/docs` folder for detailed guides
-- **Issues**: Report bugs via [GitHub Issues](https://github.com/your-org/universal-mcp-manager/issues)
-- **Security**: Report security vulnerabilities privately to security@your-org.com
-
-## 🎯 Roadmap
-
-### Phase 2: Advanced Features
-- Advanced security scanning and vetting
-- Custom server configuration options
-- Health monitoring and diagnostics
-- Backup and restore functionality
-
-### Phase 3: Enterprise Features
-- Team management and collaboration
-- Centralized server deployment
-- Advanced analytics and reporting
-- SSO integration
-
-### Phase 4: Ecosystem Expansion
-- Plugin system for custom integrations
-- API for third-party tool integration
-- Community server vetting program
-- Advanced automation features
-
-## 📈 Metrics
-
-The MVP focuses on these success metrics:
-- ✅ Detects at least one AI tool (Claude Code/VS Code/Cursor)
-- ✅ Successfully installs one MCP server (e.g., GitHub server)
-- ✅ Server appears and works in detected AI tool
-- ✅ Can enable/disable server per tool
-- ✅ Basic OAuth flow works for one provider
+This project is licensed under the MIT License.
 
 ---
 
 **Built with ❤️ using modern web technologies and enterprise security practices.**
 
-For questions, suggestions, or contributions, please visit our [GitHub repository](https://github.com/your-org/universal-mcp-manager).
+For questions or contributions, please check the documentation in `project_documentation/` or create an issue.

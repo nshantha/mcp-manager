@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-import trustedDependencies from '../../../../../trusted-dependencies-scripts.json'
+import trustedDependencies from '../../../../../scripts/build/trusted-dependencies-scripts.json'
 import packageJSON from '../../../../../package.json'
 import { getDevFolder } from '../utils/path'
 
@@ -21,7 +21,7 @@ async function createPackageJSONDistVersion() {
       ),
 
       writeFile(
-        resolve(getDevFolder(main), packageJSON.pnpm.onlyBuiltDependenciesFile),
+        resolve(getDevFolder(main), 'trusted-dependencies-scripts.json'),
         JSON.stringify(trustedDependencies, null, 2)
       ),
     ])

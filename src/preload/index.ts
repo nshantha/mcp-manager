@@ -25,10 +25,16 @@ const electronAPI = {
   uninstallMCPServer: (serverId: string) => ipcRenderer.invoke('uninstall-mcp-server', serverId),
   enableServerForTool: (serverId: string, toolName: string) => ipcRenderer.invoke('enable-server-for-tool', serverId, toolName),
   disableServerForTool: (serverId: string, toolName: string) => ipcRenderer.invoke('disable-server-for-tool', serverId, toolName),
+  getServerConfiguration: (serverId: string) => ipcRenderer.invoke('get-server-configuration', serverId),
+  configureServerAuth: (serverId: string, authConfig: Record<string, string>) => ipcRenderer.invoke('configure-server-auth', serverId, authConfig),
   
   // Settings
   getAppSettings: () => ipcRenderer.invoke('get-app-settings'),
-  updateAppSettings: (settings: any) => ipcRenderer.invoke('update-app-settings', settings)
+  updateAppSettings: (settings: any) => ipcRenderer.invoke('update-app-settings', settings),
+
+  // File Operations
+  openConfigFile: (filePath: string) => ipcRenderer.invoke('open-config-file', filePath),
+  revealConfigFile: (filePath: string) => ipcRenderer.invoke('reveal-config-file', filePath)
 }
 
 contextBridge.exposeInMainWorld('App', API)
