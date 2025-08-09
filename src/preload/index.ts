@@ -22,7 +22,9 @@ const electronAPI = {
   // MCP Server Management
   getVettedServers: () => ipcRenderer.invoke('get-vetted-servers'),
   installMCPServer: (serverId: string, config: any) => ipcRenderer.invoke('install-mcp-server', serverId, config),
-  uninstallMCPServer: (serverId: string) => ipcRenderer.invoke('uninstall-mcp-server', serverId),
+  uninstallMCPServer: (serverId: string, options?: { removePackage?: boolean }) => ipcRenderer.invoke('uninstall-mcp-server', serverId, options),
+  verifyServerInstallation: (serverId: string) => ipcRenderer.invoke('verify-server-installation', serverId),
+  checkPackageInstalled: (packageName: string) => ipcRenderer.invoke('check-package-installed', packageName),
   enableServerForTool: (serverId: string, toolName: string) => ipcRenderer.invoke('enable-server-for-tool', serverId, toolName),
   disableServerForTool: (serverId: string, toolName: string) => ipcRenderer.invoke('disable-server-for-tool', serverId, toolName),
   getServerConfiguration: (serverId: string) => ipcRenderer.invoke('get-server-configuration', serverId),
@@ -35,6 +37,10 @@ const electronAPI = {
   // File Operations
   openConfigFile: (filePath: string) => ipcRenderer.invoke('open-config-file', filePath),
   revealConfigFile: (filePath: string) => ipcRenderer.invoke('reveal-config-file', filePath)
+  ,
+  readConfigFile: (filePath: string) => ipcRenderer.invoke('read-config-file', filePath),
+  writeConfigFile: (filePath: string, content: string) => ipcRenderer.invoke('write-config-file', filePath, content),
+  writeConfigFiles: (filePaths: string[], content: string) => ipcRenderer.invoke('write-config-files', filePaths, content)
 }
 
 contextBridge.exposeInMainWorld('App', API)

@@ -11,16 +11,16 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0" style={{ zIndex: 9999 }}>
+    <div className="fixed inset-0 z-[9999]">
       <div className="fixed inset-0 flex items-center justify-center p-4">
         {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-black opacity-50" 
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm"
           onClick={() => onOpenChange(false)}
         />
-        
+
         {/* Dialog content */}
-        <div className="relative" style={{ zIndex: 10000 }}>
+        <div className="relative z-[10000]">
           {children}
         </div>
       </div>
@@ -35,14 +35,16 @@ interface DialogContentProps {
 
 export function DialogContent({ children, className = '' }: DialogContentProps) {
   return (
-    <div className={`
-      relative bg-white 
-      rounded-lg shadow-xl border
-      p-6 
-      max-w-2xl w-full
-      max-h-[90vh] overflow-y-auto
-      ${className}
-    `} style={{ backgroundColor: 'white', border: '1px solid #e2e8f0' }}>
+    <div
+      className={`
+        relative bg-card text-foreground
+        rounded-lg shadow-xl border border-border
+        p-6
+        max-w-2xl w-full
+        max-h-[90vh] overflow-y-auto
+        ${className}
+      `}
+    >
       {children}
     </div>
   )

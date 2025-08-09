@@ -1,7 +1,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
-import { execSync } from 'child_process'
+import { exec as execCb, execSync } from 'child_process'
+import { promisify } from 'util'
+const exec = promisify(execCb)
 
 export interface MCPServer {
   id: string
@@ -58,6 +60,15 @@ export class MCPServerManager {
       packageName: '@modelcontextprotocol/server-filesystem',
       requiresAuth: false
     }
+    ,
+    {
+      id: 'browser-mcp',
+      name: 'Browser MCP (Playwright)',
+      company: 'playwright',
+      description: 'Automate a headless browser for screenshots and web tasks',
+      packageName: '@modelcontextprotocol/server-browser',
+      requiresAuth: false
+    }
   ]
 
   async getVettedServers(): Promise<MCPServer[]> {
@@ -75,7 +86,7 @@ export class MCPServerManager {
     return servers
   }
 
-  async installServer(serverId: string, config?: any): Promise<{ success: boolean; message: string }> {
+  async installServer(serverId: string, config?: any): Promise<{ success: boolean; message: string; details?: any }> {
     try {
       const serverConfig = this.vettedServers.find(s => s.id === serverId)
       if (!serverConfig) {
@@ -84,45 +95,81 @@ export class MCPServerManager {
 
       console.log(`Installing MCP server: ${serverConfig.name}`)
       
-      // Step 1: Install the actual npm package
-      if (serverConfig.packageName.startsWith('@modelcontextprotocol/')) {
+      const installationDetails = {
+        packageInstalled: false,
+        configurationApplied: false,
+        configuredTools: [] as string[],
+        errors: [] as string[]
+      }
+
+      // Step 1: Check if package is already installed
+      const isAlreadyInstalled = await this.checkNpmPackageInstalled(serverConfig.packageName)
+      if (isAlreadyInstalled) {
+        console.log(`Package ${serverConfig.packageName} is already installed`)
+        installationDetails.packageInstalled = true
+      } else {
+        // Step 2: Install the actual npm package
         try {
           console.log(`Installing package: ${serverConfig.packageName}`)
-          execSync(`npm install -g ${serverConfig.packageName}`, { 
-            stdio: 'pipe',
-            timeout: 60000 // 1 minute timeout
-          })
-          console.log(`Package ${serverConfig.packageName} installed successfully`)
+          const installResult = await this.installNpmPackage(serverConfig.packageName)
+          if (installResult.success) {
+            console.log(`Package ${serverConfig.packageName} installed successfully`)
+            installationDetails.packageInstalled = true
+          } else {
+            installationDetails.errors.push(`npm install failed: ${installResult.error}`)
+            // Continue with configuration anyway - package might be available via npx
+          }
         } catch (npmError) {
-          console.warn(`npm install failed, continuing with configuration: ${npmError}`)
-          // Continue anyway - package might already be installed or available via npx
+          const errorMessage = npmError instanceof Error ? npmError.message : 'Unknown npm error'
+          console.warn(`npm install failed: ${errorMessage}`)
+          installationDetails.errors.push(`npm install failed: ${errorMessage}`)
+          // Continue anyway - package might already be installed globally or available via npx
         }
       }
 
-      // Step 2: Add to our installed servers list
+      // Step 3: Add to our installed servers list
       await this.addToInstalledList(serverId, config)
+      installationDetails.configurationApplied = true
 
-      // Step 3: Configure detected AI tools
-      const configResults = await this.configureAITools(serverId)
+      // Step 4: Configure detected AI tools
+      try {
+        const configResults = await this.configureAITools(serverId)
+        installationDetails.configuredTools = configResults
+      } catch (configError) {
+        const errorMessage = configError instanceof Error ? configError.message : 'Unknown config error'
+        installationDetails.errors.push(`Configuration failed: ${errorMessage}`)
+      }
       
-      let message = `${serverConfig.name} installed successfully`
-      if (configResults.length > 0) {
-        message += `. Configured for: ${configResults.join(', ')}`
+      // Step 5: Verify installation
+      const verificationResult = await this.verifyServerInstallation(serverId)
+      
+      let message = `${serverConfig.name} installation completed`
+      if (installationDetails.configuredTools.length > 0) {
+        message += `. Configured for: ${installationDetails.configuredTools.join(', ')}`
+      }
+      
+      if (installationDetails.errors.length > 0) {
+        message += `. Warnings: ${installationDetails.errors.length} issue(s) encountered`
       }
 
       return { 
-        success: true, 
-        message 
+        success: installationDetails.packageInstalled || installationDetails.configurationApplied, 
+        message,
+        details: {
+          ...installationDetails,
+          verification: verificationResult
+        }
       }
     } catch (error) {
       return { 
         success: false, 
-        message: `Failed to install server: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        message: `Failed to install server: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: { errors: [error instanceof Error ? error.message : 'Unknown error'] }
       }
     }
   }
 
-  async uninstallServer(serverId: string): Promise<{ success: boolean; message: string }> {
+  async uninstallServer(serverId: string, options?: { removePackage?: boolean }): Promise<{ success: boolean; message: string; details?: any }> {
     try {
       const serverConfig = this.vettedServers.find(s => s.id === serverId)
       if (!serverConfig) {
@@ -131,28 +178,70 @@ export class MCPServerManager {
 
       console.log(`Uninstalling MCP server: ${serverConfig.name}`)
 
+      const uninstallDetails = {
+        configurationRemoved: false,
+        packageRemoved: false,
+        removedFromTools: [] as string[],
+        errors: [] as string[]
+      }
+
       // Step 1: Remove from AI tool configurations
-      const removedFrom = await this.removeFromAITools(serverId)
+      try {
+        const removedFrom = await this.removeFromAITools(serverId)
+        uninstallDetails.removedFromTools = removedFrom
+        uninstallDetails.configurationRemoved = true
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        uninstallDetails.errors.push(`Failed to remove configurations: ${errorMessage}`)
+      }
 
       // Step 2: Remove from our installed servers list
-      await this.removeFromInstalledList(serverId)
+      try {
+        await this.removeFromInstalledList(serverId)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        uninstallDetails.errors.push(`Failed to remove from installed list: ${errorMessage}`)
+      }
 
-      // Step 3: Optionally uninstall npm package (commented out to avoid breaking other tools)
-      // execSync(`npm uninstall -g ${serverConfig.packageName}`)
+      // Step 3: Optionally uninstall npm package
+      if (options?.removePackage) {
+        try {
+          const uninstallResult = await this.uninstallNpmPackage(serverConfig.packageName)
+          uninstallDetails.packageRemoved = uninstallResult.success
+          if (!uninstallResult.success && uninstallResult.error) {
+            uninstallDetails.errors.push(`Package removal failed: ${uninstallResult.error}`)
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          uninstallDetails.errors.push(`Package removal error: ${errorMessage}`)
+        }
+      }
 
       let message = `${serverConfig.name} uninstalled successfully`
-      if (removedFrom.length > 0) {
-        message += `. Removed from: ${removedFrom.join(', ')}`
+      if (uninstallDetails.removedFromTools.length > 0) {
+        message += `. Removed from: ${uninstallDetails.removedFromTools.join(', ')}`
+      }
+      
+      if (options?.removePackage) {
+        message += uninstallDetails.packageRemoved 
+          ? '. Package removed from system' 
+          : '. Package removal skipped or failed'
+      }
+      
+      if (uninstallDetails.errors.length > 0) {
+        message += `. Warnings: ${uninstallDetails.errors.length} issue(s) encountered`
       }
 
       return { 
-        success: true, 
-        message
+        success: uninstallDetails.configurationRemoved || uninstallDetails.packageRemoved, 
+        message,
+        details: uninstallDetails
       }
     } catch (error) {
       return { 
         success: false, 
-        message: `Failed to uninstall server: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        message: `Failed to uninstall server: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: { errors: [error instanceof Error ? error.message : 'Unknown error'] }
       }
     }
   }
@@ -287,6 +376,131 @@ export class MCPServerManager {
     } catch {
       return false
     }
+  }
+
+  private async checkNpmPackageInstalled(packageName: string): Promise<boolean> {
+    try {
+      // Check if package is installed globally (non-blocking)
+      const { stdout } = await exec(`npm list -g ${packageName} --depth=0`, { maxBuffer: 10 * 1024 * 1024 })
+      return stdout.includes(packageName)
+    } catch {
+      // Package not installed globally, check if available via npx
+      try {
+        await exec(`npx --yes ${packageName} --help`, { maxBuffer: 10 * 1024 * 1024 })
+        return true
+      } catch {
+        return false
+      }
+    }
+  }
+
+  private async installNpmPackage(packageName: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Installing npm package: ${packageName}`)
+      await exec(`npm install -g ${packageName}`, { maxBuffer: 50 * 1024 * 1024 })
+      
+      // Verify installation
+      const isInstalled = await this.checkNpmPackageInstalled(packageName)
+      if (isInstalled) {
+        return { success: true }
+      } else {
+        return { success: false, error: 'Package installation verification failed' }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown installation error'
+      console.error(`Failed to install ${packageName}:`, errorMessage)
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  private async uninstallNpmPackage(packageName: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Uninstalling npm package: ${packageName}`)
+      
+      // Check if package is actually installed first
+      const isInstalled = await this.checkNpmPackageInstalled(packageName)
+      if (!isInstalled) {
+        return { success: true } // Already not installed
+      }
+
+      execSync(`npm uninstall -g ${packageName}`, { 
+        stdio: 'pipe',
+        timeout: 60000, // 1 minute timeout
+        encoding: 'utf8'
+      })
+      
+      // Verify uninstallation
+      const stillInstalled = await this.checkNpmPackageInstalled(packageName)
+      if (!stillInstalled) {
+        console.log(`Package ${packageName} uninstalled successfully`)
+        return { success: true }
+      } else {
+        return { success: false, error: 'Package uninstallation verification failed' }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown uninstallation error'
+      console.error(`Failed to uninstall ${packageName}:`, errorMessage)
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  private async verifyServerInstallation(serverId: string): Promise<{
+    packageAvailable: boolean;
+    configurationValid: boolean;
+    serverResponds: boolean;
+    overallStatus: 'working' | 'partial' | 'failed';
+  }> {
+    const serverConfig = this.vettedServers.find(s => s.id === serverId)
+    if (!serverConfig) {
+      return {
+        packageAvailable: false,
+        configurationValid: false,
+        serverResponds: false,
+        overallStatus: 'failed'
+      }
+    }
+
+    const verification = {
+      packageAvailable: false,
+      configurationValid: false,
+      serverResponds: false,
+      overallStatus: 'failed' as const
+    }
+
+    // Check 1: Package availability
+    verification.packageAvailable = await this.checkNpmPackageInstalled(serverConfig.packageName)
+
+    // Check 2: Configuration validity
+    try {
+      const installedServers = await this.getInstalledServers()
+      verification.configurationValid = !!installedServers[serverId]
+    } catch {
+      verification.configurationValid = false
+    }
+
+    // Check 3: Server responsiveness (basic test)
+    if (verification.packageAvailable) {
+      try {
+        // Test if server can be invoked (basic health check)
+        const testCommand = `echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx ${serverConfig.packageName}`
+        await exec(testCommand, { maxBuffer: 10 * 1024 * 1024 })
+        verification.serverResponds = true
+      } catch {
+        // Server might require authentication or specific setup
+        verification.serverResponds = false
+      }
+    }
+
+    // Determine overall status
+    if (verification.packageAvailable && verification.configurationValid) {
+      verification.overallStatus = verification.serverResponds ? 'working' : 'partial'
+    } else if (verification.configurationValid) {
+      verification.overallStatus = 'partial'
+    } else {
+      verification.overallStatus = 'failed'
+    }
+
+    return verification
   }
 
   private async getEnabledTools(serverId: string): Promise<string[]> {

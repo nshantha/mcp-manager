@@ -16,7 +16,8 @@ import {
   FileText,
   Copy,
   Terminal,
-  BookOpen
+  BookOpen,
+  Save
 } from 'lucide-react'
 
 interface ServerInstructionsDialogProps {
@@ -119,19 +120,53 @@ const INSTRUCTIONS = {
       'VS Code': '~/Library/Application Support/Code/User/settings.json',
       'Cursor': '~/Library/Application Support/Cursor/User/settings.json'
     }
+  },
+  'browser-mcp': {
+    title: 'Browser MCP (Playwright)',
+    description: 'Automate Chromium via MCP for screenshots and web tasks',
+    setupInstructions: [
+      'No authentication required',
+      'Installs Playwright browsers on first run if missing',
+      'Use tools like browser.open, browser.screenshot'
+    ],
+    usageExamples: {
+      'Cursor': [
+        'Open https://example.com and take a full-page screenshot',
+        'Fill a form on a page and submit',
+        'Scrape the title of the current page'
+      ],
+      'VS Code': [
+        'Use MCP panel to issue browser.screenshot',
+        'Navigate and capture element screenshots'
+      ],
+      'Claude Code': [
+        'Open a page, click a selector, screenshot'
+      ]
+    },
+    configPaths: {
+      'Claude Code': '~/.claude/config.json',
+      'VS Code': '~/Library/Application Support/Code/User/settings.json',
+      'Cursor': '~/Library/Application Support/Cursor/User/settings.json'
+    }
   }
 }
 
 export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose }: ServerInstructionsDialogProps) {
   const [activeTab, setActiveTab] = useState<'setup' | 'usage' | 'tokens' | 'config'>('setup')
+  // Keep hooks before any early returns to avoid hook order mismatch
+  const [copied, setCopied] = useState<string | null>(null)
   
   if (!serverId || !isOpen) return null
   
   const instructions = INSTRUCTIONS[serverId as keyof typeof INSTRUCTIONS]
   if (!instructions) return null
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(text)
+      setTimeout(() => setCopied(null), 1200)
+    } catch {}
   }
 
   const openConfigFile = async (tool: string) => {
@@ -150,7 +185,7 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-card text-foreground">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
@@ -162,12 +197,12 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
         </DialogHeader>
 
         {/* Tab Navigation */}
-        <div className="flex border-b">
+        <div className="flex border-b border-border">
           <button
             className={`px-4 py-2 font-medium text-sm ${
               activeTab === 'setup' 
                 ? 'border-b-2 border-blue-500 text-blue-600' 
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('setup')}
           >
@@ -177,7 +212,7 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
             className={`px-4 py-2 font-medium text-sm ${
               activeTab === 'usage' 
                 ? 'border-b-2 border-blue-500 text-blue-600' 
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('usage')}
           >
@@ -188,7 +223,7 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
               className={`px-4 py-2 font-medium text-sm ${
                 activeTab === 'tokens' 
                   ? 'border-b-2 border-blue-500 text-blue-600' 
-                  : 'text-gray-500 hover:text-gray-700'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setActiveTab('tokens')}
             >
@@ -199,7 +234,7 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
             className={`px-4 py-2 font-medium text-sm ${
               activeTab === 'config' 
                 ? 'border-b-2 border-blue-500 text-blue-600' 
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('config')}
           >
@@ -295,30 +330,12 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
                     <CardDescription>Configuration file location</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <code className="text-sm font-mono">{path}</code>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => copyToClipboard(path)}
-                        >
-                          <Copy className="h-3 w-3 mr-1" />
-                          Copy Path
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => openConfigFile(tool)}
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Open
-                        </Button>
-                      </div>
-                    </div>
+                    <ConfigRow tool={tool} path={path} onCopy={copyToClipboard} copied={copied === path} onOpen={() => openConfigFile(tool)} />
                   </CardContent>
                 </Card>
               ))}
+
+              <UnifiedEditor configPaths={instructions.configPaths} />
             </div>
           )}
         </div>
@@ -331,5 +348,113 @@ export function ServerInstructionsDialog({ serverId, serverName, isOpen, onClose
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ConfigRow({ tool, path, onCopy, copied, onOpen }: { tool: string; path: string; onCopy: (t: string)=>void; copied: boolean; onOpen: ()=>void }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border">
+      <div className="overflow-x-auto max-w-full">
+        <code className="text-sm font-mono text-foreground/90 whitespace-pre">{path}</code>
+      </div>
+      <div className="flex gap-2">
+        <Button 
+          size="sm" 
+          variant="outline"
+          onClick={() => onCopy(path)}
+          className={copied ? 'border-green-300 text-green-700 bg-green-50' : ''}
+        >
+          <Copy className="h-3 w-3 mr-1" />
+          {copied ? 'Copied' : 'Copy Path'}
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline"
+          onClick={onOpen}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          Open
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function UnifiedEditor({ configPaths }: { configPaths: Record<string, string> }) {
+  const [content, setContent] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<'idle'|'saved'|'error'>('idle')
+
+  const primaryPath = Object.values(configPaths)[0]
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setLoading(true)
+        const res = await window.electronAPI?.readConfigFile(primaryPath)
+        setContent(res?.content ?? '')
+      } catch (e) {
+        setContent('')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [primaryPath])
+
+  const saveAll = async () => {
+    try {
+      setSaving(true)
+      setStatus('idle')
+      const paths = Object.values(configPaths)
+      const res = await window.electronAPI?.writeConfigFiles(paths, content)
+      if (res?.success) {
+        setStatus('saved')
+        setTimeout(() => setStatus('idle'), 1500)
+      } else {
+        setStatus('error')
+      }
+    } catch {
+      setStatus('error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Unified Editor</CardTitle>
+        <CardDescription>Edit once and apply to all tool config files</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full h-48 font-mono text-sm border border-border rounded-md p-3 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Paste or edit configuration JSON here"
+          />
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-500">
+              {loading ? 'Loading...' : status === 'saved' ? 'Saved to all config files' : status === 'error' ? 'Save failed' : 'Edit and save to apply everywhere'}
+            </div>
+            <Button onClick={saveAll} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save to All
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

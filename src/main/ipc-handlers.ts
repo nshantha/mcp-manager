@@ -1,4 +1,7 @@
 import { ipcMain } from 'electron'
+import { homedir } from 'os'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { dirname, join } from 'path'
 import { AIToolDetector } from './services/ai-tool-detector'
 import { MCPServerManager } from './services/mcp-server-manager'
 
@@ -62,12 +65,35 @@ export function setupIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('uninstall-mcp-server', async (_, serverId: string) => {
+  ipcMain.handle('uninstall-mcp-server', async (_, serverId: string, options?: { removePackage?: boolean }) => {
     try {
-      return await serverManager.uninstallServer(serverId)
+      return await serverManager.uninstallServer(serverId, options)
     } catch (error) {
       console.error(`Failed to uninstall MCP server ${serverId}:`, error)
       return { success: false, message: 'Uninstallation failed' }
+    }
+  })
+
+  ipcMain.handle('verify-server-installation', async (_, serverId: string) => {
+    try {
+      return await (serverManager as any).verifyServerInstallation(serverId)
+    } catch (error) {
+      console.error(`Failed to verify server installation for ${serverId}:`, error)
+      return {
+        packageAvailable: false,
+        configurationValid: false,
+        serverResponds: false,
+        overallStatus: 'failed'
+      }
+    }
+  })
+
+  ipcMain.handle('check-package-installed', async (_, packageName: string) => {
+    try {
+      return await (serverManager as any).checkNpmPackageInstalled(packageName)
+    } catch (error) {
+      console.error(`Failed to check package installation for ${packageName}:`, error)
+      return false
     }
   })
 
@@ -124,7 +150,18 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('open-config-file', async (_, filePath: string) => {
     try {
       const { shell } = require('electron')
-      await shell.openPath(filePath)
+      // Expand ~ and ensure file exists
+      const expandedPath = filePath.startsWith('~')
+        ? join(homedir(), filePath.replace(/^~\/?/, ''))
+        : filePath
+      const dir = dirname(expandedPath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+      if (!existsSync(expandedPath)) {
+        writeFileSync(expandedPath, '{}', 'utf8')
+      }
+      await shell.openPath(expandedPath)
       return { success: true }
     } catch (error) {
       console.error('Failed to open config file:', error)
@@ -135,10 +172,74 @@ export function setupIpcHandlers(): void {
   ipcMain.handle('reveal-config-file', async (_, filePath: string) => {
     try {
       const { shell } = require('electron')
-      shell.showItemInFolder(filePath)
+      const expandedPath = filePath.startsWith('~')
+        ? join(homedir(), filePath.replace(/^~\/?/, ''))
+        : filePath
+      shell.showItemInFolder(expandedPath)
       return { success: true }
     } catch (error) {
       console.error('Failed to reveal config file:', error)
+      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+
+  // Read config file contents (as text)
+  ipcMain.handle('read-config-file', async (_, filePath: string) => {
+    try {
+      const expandedPath = filePath.startsWith('~')
+        ? join(homedir(), filePath.replace(/^~\/?/, ''))
+        : filePath
+      if (!existsSync(expandedPath)) {
+        return { success: true, content: '', path: expandedPath }
+      }
+      const content = readFileSync(expandedPath, 'utf8')
+      return { success: true, content, path: expandedPath }
+    } catch (error) {
+      console.error('Failed to read config file:', error)
+      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+
+  // Write config file contents (raw text)
+  ipcMain.handle('write-config-file', async (_, filePath: string, content: string) => {
+    try {
+      const expandedPath = filePath.startsWith('~')
+        ? join(homedir(), filePath.replace(/^~\/?/, ''))
+        : filePath
+      const dir = dirname(expandedPath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+      writeFileSync(expandedPath, content ?? '', 'utf8')
+      return { success: true, path: expandedPath }
+    } catch (error) {
+      console.error('Failed to write config file:', error)
+      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+
+  // Write the same content to multiple config files
+  ipcMain.handle('write-config-files', async (_, filePaths: string[], content: string) => {
+    try {
+      const results: { path: string; success: boolean; message?: string }[] = []
+      for (const filePath of filePaths) {
+        const expandedPath = filePath.startsWith('~')
+          ? join(homedir(), filePath.replace(/^~\/?/, ''))
+          : filePath
+        try {
+          const dir = dirname(expandedPath)
+          if (!existsSync(dir)) {
+            mkdirSync(dir, { recursive: true })
+          }
+          writeFileSync(expandedPath, content ?? '', 'utf8')
+          results.push({ path: expandedPath, success: true })
+        } catch (err) {
+          results.push({ path: expandedPath, success: false, message: err instanceof Error ? err.message : 'Unknown error' })
+        }
+      }
+      return { success: true, results }
+    } catch (error) {
+      console.error('Failed to write multiple config files:', error)
       return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
     }
   })

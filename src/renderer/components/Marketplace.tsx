@@ -10,6 +10,8 @@ export function Marketplace() {
   const [servers, setServers] = useState<MCPServer[]>([])
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<string | null>(null)
+  const [uninstalling, setUninstalling] = useState<string | null>(null)
+  const [progressByServer, setProgressByServer] = useState<Record<string, { value: number; label: string }>>({})
   const [configDialogServerId, setConfigDialogServerId] = useState<string | null>(null)
   const [configDialogServerName, setConfigDialogServerName] = useState<string>('')
 
@@ -32,6 +34,7 @@ export function Marketplace() {
   const handleInstall = async (serverId: string) => {
     try {
       setInstalling(serverId)
+      setProgressByServer(prev => ({ ...prev, [serverId]: { value: 8, label: 'Checking…' } }))
       console.log('Installing server:', serverId)
       
       if (!window.electronAPI) {
@@ -39,16 +42,26 @@ export function Marketplace() {
         return
       }
       
+      setProgressByServer(prev => ({ ...prev, [serverId]: { value: 45, label: 'Installing…' } }))
       const result = await window.electronAPI.installMCPServer(serverId, {})
       console.log('Install result:', result)
       
       if (result?.success) {
-        console.log('Installation successful, refreshing server list')
+        // Kick off verification in background to avoid blocking UI
+        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 75, label: 'Verifying…' } }))
+        window.electronAPI?.verifyServerInstallation?.(serverId).finally(() => {
+          // No-op; we still refresh the list below
+        })
+        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Done' } }))
         // Refresh the server list to show updated installation status
         await loadServers()
+        // Briefly keep the 100% bar visible, then clear
+        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 700)
       } else {
         console.error('Installation failed:', result?.message)
         alert(`Installation failed: ${result?.message || 'Unknown error'}`)
+        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Failed' } }))
+        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 1200)
       }
     } catch (error) {
       console.error('Failed to install server:', error)
@@ -60,18 +73,24 @@ export function Marketplace() {
 
   const handleUninstall = async (serverId: string) => {
     try {
-      setInstalling(serverId)
+      setUninstalling(serverId)
+      setProgressByServer(prev => ({ ...prev, [serverId]: { value: 10, label: 'Removing…' } }))
       const result = await window.electronAPI?.uninstallMCPServer(serverId)
       
       if (result?.success) {
+        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 70, label: 'Cleaning…' } }))
         await loadServers()
+        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Done' } }))
+        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 700)
       } else {
         console.error('Uninstallation failed:', result?.message)
+        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Failed' } }))
+        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 1200)
       }
     } catch (error) {
       console.error('Failed to uninstall server:', error)
     } finally {
-      setInstalling(null)
+      setUninstalling(null)
     }
   }
 
@@ -115,6 +134,8 @@ export function Marketplace() {
               setConfigDialogServerName(server.name)
             }}
             installing={installing === server.id}
+            uninstalling={uninstalling === server.id}
+            progress={progressByServer[server.id]}
           />
         ))}
       </div>
@@ -135,9 +156,11 @@ interface ServerCardProps {
   onUninstall: () => void
   onConfigure: () => void
   installing: boolean
+  uninstalling: boolean
+  progress?: { value: number; label: string }
 }
 
-function ServerCard({ server, onInstall, onUninstall, onConfigure, installing }: ServerCardProps) {
+function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, uninstalling, progress }: ServerCardProps) {
   const getCompanyBadgeColor = (company: string) => {
     const colors = {
       github: 'bg-gray-900 text-white',
@@ -162,7 +185,11 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing }:
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col relative overflow-hidden">
+      {/* Thin top progress bar on the card when active */}
+      {(progress && (installing || uninstalling)) && (
+        <div className="absolute top-0 left-0 h-0.5 bg-blue-600 transition-all" style={{ width: `${Math.min(100, Math.max(0, progress.value))}%` }} />
+      )}
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -218,13 +245,13 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing }:
                 variant="destructive" 
                 size="sm" 
                 onClick={onUninstall}
-                disabled={installing}
+                disabled={installing || uninstalling}
                 className="w-full"
               >
-                {installing ? (
+                {(installing || uninstalling) ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Uninstalling...
+                    {uninstalling ? 'Uninstalling…' : 'Working…'}
                   </>
                 ) : (
                   'Uninstall'
@@ -248,7 +275,7 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing }:
               {installing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Installing...
+                  Installing…
                 </>
               ) : (
                 <>
@@ -257,6 +284,14 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing }:
                 </>
               )}
             </Button>
+          )}
+          {(progress && (installing || uninstalling)) && (
+            <div className="mt-2">
+              <div className="h-1 w-full bg-gray-200 rounded overflow-hidden">
+                <div className="h-1 bg-blue-600 transition-all" style={{ width: `${Math.min(100, Math.max(0, progress.value))}%` }} />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">{progress.label}</div>
+            </div>
           )}
         </div>
       </CardContent>
