@@ -3,6 +3,10 @@
 **Enterprise-grade management for Model Context Protocol servers across AI development tools**
 
 Universal MCP Manager is a secure, cross-platform Electron desktop application that simplifies the installation, configuration, and management of Model Context Protocol (MCP) servers across multiple AI development environments including Claude Code, VS Code, and Cursor.
+<img width="1202" height="797" alt="image" src="https://github.com/user-attachments/assets/7d312e9f-9e1a-4076-98c8-c744c407f941" />
+<img width="1199" height="791" alt="image" src="https://github.com/user-attachments/assets/818c491e-c46e-4d16-b9ce-0bf2f7cdf142" />
+
+
 
 ## 🎯 Core Value Proposition
 
