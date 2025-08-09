@@ -67,18 +67,8 @@ mcp-manager/
 │   │   └── screens/                 # Screen components
 │   ├── preload/                     # Preload scripts
 │   └── shared/                      # Shared utilities
-├── 📁 test/                         # Test files
-│   ├── test-github-mcp.js           # GitHub MCP testing
-│   ├── test-integration.js          # Integration tests  
-│   ├── troubleshoot-claude-mcp.js   # Debugging scripts
-│   └── verify-mvp.js                # MVP verification
-├── 📁 project_documentation/        # Documentation
-│   ├── CONFIGURE_FUNCTIONALITY.md   # Configuration guide
-│   ├── GITHUB_MCP_TEST_GUIDE.md     # Testing instructions
-│   ├── TOKEN_MANAGEMENT.md          # Token management
-│   └── MVP_PLAN.md                  # Project planning
 ├── 📁 scripts/                      # Build & utility scripts
-│   └── build/                       # Build configuration
+│   └── dev/                         # Development scripts
 ├── 📦 Configuration Files
 │   ├── package.json                 # Dependencies & scripts
 │   ├── tsconfig.json               # TypeScript config
@@ -100,18 +90,7 @@ mcp-manager/
 
 ## 🧪 Testing
 
-Run the comprehensive test suite:
-
-```bash
-# Test GitHub MCP functionality
-node test/test-github-mcp.js
-
-# Verify MVP requirements  
-node test/verify-mvp.js
-
-# Troubleshoot Claude Code integration
-node test/troubleshoot-claude-mcp.js
-```
+Testing is handled through the application's built-in verification features and the development environment.
 
 ## 🔐 Security Features
 
@@ -153,12 +132,7 @@ node test/troubleshoot-claude-mcp.js
 
 ## 📖 Documentation
 
-Detailed documentation is available in the `project_documentation/` folder:
-
-- **[Configure Functionality](project_documentation/CONFIGURE_FUNCTIONALITY.md)** - Configuration features
-- **[GitHub MCP Testing](project_documentation/GITHUB_MCP_TEST_GUIDE.md)** - Testing guide  
-- **[Token Management](project_documentation/TOKEN_MANAGEMENT.md)** - Security implementation
-- **[Implementation Notes](project_documentation/IMPLEMENTATION_NOTES.md)** - Technical details
+For detailed documentation about the project architecture, security implementation, and configuration features, please refer to the codebase and inline documentation.
 
 ## 🤝 Contributing
 
@@ -178,4 +152,4 @@ This project is licensed under the MIT License.
 
 **Built with ❤️ using modern web technologies and enterprise security practices.**
 
-For questions or contributions, please check the documentation in `project_documentation/` or create an issue.
+For questions or contributions, please create an issue in the repository.
