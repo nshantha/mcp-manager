@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
-import { homedir } from 'os'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { dirname, join } from 'path'
+import { homedir } from 'node:os'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { AIToolDetector } from './services/ai-tool-detector'
 import { MCPServerManager } from './services/mcp-server-manager'
 
@@ -56,34 +56,43 @@ export function setupIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('install-mcp-server', async (_, serverId: string, config: any) => {
-    try {
-      return await serverManager.installServer(serverId, config)
-    } catch (error) {
-      console.error(`Failed to install MCP server ${serverId}:`, error)
-      return { success: false, message: 'Installation failed' }
+  ipcMain.handle(
+    'install-mcp-server',
+    async (_, serverId: string, config: any) => {
+      try {
+        return await serverManager.installServer(serverId, config)
+      } catch (error) {
+        console.error(`Failed to install MCP server ${serverId}:`, error)
+        return { success: false, message: 'Installation failed' }
+      }
     }
-  })
+  )
 
-  ipcMain.handle('uninstall-mcp-server', async (_, serverId: string, options?: { removePackage?: boolean }) => {
-    try {
-      return await serverManager.uninstallServer(serverId, options)
-    } catch (error) {
-      console.error(`Failed to uninstall MCP server ${serverId}:`, error)
-      return { success: false, message: 'Uninstallation failed' }
+  ipcMain.handle(
+    'uninstall-mcp-server',
+    async (_, serverId: string, options?: { removePackage?: boolean }) => {
+      try {
+        return await serverManager.uninstallServer(serverId, options)
+      } catch (error) {
+        console.error(`Failed to uninstall MCP server ${serverId}:`, error)
+        return { success: false, message: 'Uninstallation failed' }
+      }
     }
-  })
+  )
 
   ipcMain.handle('verify-server-installation', async (_, serverId: string) => {
     try {
-      return await (serverManager as any).verifyServerInstallation(serverId)
+      return await serverManager.verifyServerInstallation(serverId)
     } catch (error) {
-      console.error(`Failed to verify server installation for ${serverId}:`, error)
+      console.error(
+        `Failed to verify server installation for ${serverId}:`,
+        error
+      )
       return {
         packageAvailable: false,
         configurationValid: false,
         serverResponds: false,
-        overallStatus: 'failed'
+        overallStatus: 'failed',
       }
     }
   })
@@ -92,44 +101,89 @@ export function setupIpcHandlers(): void {
     try {
       return await (serverManager as any).checkNpmPackageInstalled(packageName)
     } catch (error) {
-      console.error(`Failed to check package installation for ${packageName}:`, error)
+      console.error(
+        `Failed to check package installation for ${packageName}:`,
+        error
+      )
       return false
     }
   })
 
-  ipcMain.handle('enable-server-for-tool', async (_, serverId: string, toolName: string) => {
-    try {
-      return await serverManager.enableServerForTool(serverId, toolName)
-    } catch (error) {
-      console.error(`Failed to enable server ${serverId} for tool ${toolName}:`, error)
-      return false
+  ipcMain.handle(
+    'enable-server-for-tool',
+    async (_, serverId: string, toolName: string) => {
+      try {
+        return await serverManager.enableServerForTool(serverId, toolName)
+      } catch (error) {
+        console.error(
+          `Failed to enable server ${serverId} for tool ${toolName}:`,
+          error
+        )
+        return false
+      }
     }
-  })
+  )
 
-  ipcMain.handle('disable-server-for-tool', async (_, serverId: string, toolName: string) => {
-    try {
-      return await serverManager.disableServerForTool(serverId, toolName)
-    } catch (error) {
-      console.error(`Failed to disable server ${serverId} for tool ${toolName}:`, error)
-      return false
+  ipcMain.handle(
+    'disable-server-for-tool',
+    async (_, serverId: string, toolName: string) => {
+      try {
+        return await serverManager.disableServerForTool(serverId, toolName)
+      } catch (error) {
+        console.error(
+          `Failed to disable server ${serverId} for tool ${toolName}:`,
+          error
+        )
+        return false
+      }
     }
-  })
+  )
 
   ipcMain.handle('get-server-configuration', async (_, serverId: string) => {
     try {
       return await serverManager.getServerConfiguration(serverId)
     } catch (error) {
-      console.error(`Failed to get server configuration for ${serverId}:`, error)
-      return { server: null, status: { installed: false, configuredTools: [], authRequired: false, authConfigured: false } }
+      console.error(
+        `Failed to get server configuration for ${serverId}:`,
+        error
+      )
+      return {
+        server: null,
+        status: {
+          installed: false,
+          configuredTools: [],
+          authRequired: false,
+          authConfigured: false,
+        },
+      }
     }
   })
 
-  ipcMain.handle('configure-server-auth', async (_, serverId: string, authConfig: Record<string, string>) => {
+  ipcMain.handle(
+    'configure-server-auth',
+    async (_, serverId: string, authConfig: Record<string, string>) => {
+      try {
+        return await serverManager.configureServerAuth(serverId, authConfig)
+      } catch (error) {
+        console.error(`Failed to configure server auth for ${serverId}:`, error)
+        return {
+          success: false,
+          message: 'Authentication configuration failed',
+        }
+      }
+    }
+  )
+
+  // Write MCP Config for specific tool
+  ipcMain.handle('write-mcp-config', async (_, toolId: string, config: any) => {
     try {
-      return await serverManager.configureServerAuth(serverId, authConfig)
+      return await serverManager.writeMCPConfigForTool(toolId, config)
     } catch (error) {
-      console.error(`Failed to configure server auth for ${serverId}:`, error)
-      return { success: false, message: 'Authentication configuration failed' }
+      console.error(`Failed to write MCP config for ${toolId}:`, error)
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }
     }
   })
 
@@ -138,7 +192,7 @@ export function setupIpcHandlers(): void {
     return {
       theme: 'light',
       autoUpdate: true,
-      notifications: true
+      notifications: true,
     }
   })
 
@@ -165,7 +219,10 @@ export function setupIpcHandlers(): void {
       return { success: true }
     } catch (error) {
       console.error('Failed to open config file:', error)
-      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }
     }
   })
 
@@ -179,7 +236,10 @@ export function setupIpcHandlers(): void {
       return { success: true }
     } catch (error) {
       console.error('Failed to reveal config file:', error)
-      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }
     }
   })
 
@@ -196,51 +256,71 @@ export function setupIpcHandlers(): void {
       return { success: true, content, path: expandedPath }
     } catch (error) {
       console.error('Failed to read config file:', error)
-      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }
     }
   })
 
   // Write config file contents (raw text)
-  ipcMain.handle('write-config-file', async (_, filePath: string, content: string) => {
-    try {
-      const expandedPath = filePath.startsWith('~')
-        ? join(homedir(), filePath.replace(/^~\/?/, ''))
-        : filePath
-      const dir = dirname(expandedPath)
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true })
-      }
-      writeFileSync(expandedPath, content ?? '', 'utf8')
-      return { success: true, path: expandedPath }
-    } catch (error) {
-      console.error('Failed to write config file:', error)
-      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
-
-  // Write the same content to multiple config files
-  ipcMain.handle('write-config-files', async (_, filePaths: string[], content: string) => {
-    try {
-      const results: { path: string; success: boolean; message?: string }[] = []
-      for (const filePath of filePaths) {
+  ipcMain.handle(
+    'write-config-file',
+    async (_, filePath: string, content: string) => {
+      try {
         const expandedPath = filePath.startsWith('~')
           ? join(homedir(), filePath.replace(/^~\/?/, ''))
           : filePath
-        try {
-          const dir = dirname(expandedPath)
-          if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true })
-          }
-          writeFileSync(expandedPath, content ?? '', 'utf8')
-          results.push({ path: expandedPath, success: true })
-        } catch (err) {
-          results.push({ path: expandedPath, success: false, message: err instanceof Error ? err.message : 'Unknown error' })
+        const dir = dirname(expandedPath)
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true })
+        }
+        writeFileSync(expandedPath, content ?? '', 'utf8')
+        return { success: true, path: expandedPath }
+      } catch (error) {
+        console.error('Failed to write config file:', error)
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
         }
       }
-      return { success: true, results }
-    } catch (error) {
-      console.error('Failed to write multiple config files:', error)
-      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' }
     }
-  })
+  )
+
+  // Write the same content to multiple config files
+  ipcMain.handle(
+    'write-config-files',
+    async (_, filePaths: string[], content: string) => {
+      try {
+        const results: { path: string; success: boolean; message?: string }[] =
+          []
+        for (const filePath of filePaths) {
+          const expandedPath = filePath.startsWith('~')
+            ? join(homedir(), filePath.replace(/^~\/?/, ''))
+            : filePath
+          try {
+            const dir = dirname(expandedPath)
+            if (!existsSync(dir)) {
+              mkdirSync(dir, { recursive: true })
+            }
+            writeFileSync(expandedPath, content ?? '', 'utf8')
+            results.push({ path: expandedPath, success: true })
+          } catch (err) {
+            results.push({
+              path: expandedPath,
+              success: false,
+              message: err instanceof Error ? err.message : 'Unknown error',
+            })
+          }
+        }
+        return { success: true, results }
+      } catch (error) {
+        console.error('Failed to write multiple config files:', error)
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    }
+  )
 }

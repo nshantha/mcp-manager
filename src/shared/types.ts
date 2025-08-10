@@ -1,14 +1,10 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 
-import type { registerRoute } from 'lib/electron-router-dom'
-
 export type BrowserWindowOrNull = Electron.BrowserWindow | null
 
-type Route = Parameters<typeof registerRoute>[0]
-
 export interface WindowProps extends Electron.BrowserWindowConstructorOptions {
-  id: Route['id']
-  query?: Route['query']
+  id: string
+  query?: Record<string, string>
 }
 
 export interface WindowCreationByIPC {
@@ -20,22 +16,22 @@ export interface WindowCreationByIPC {
 export type ViewType = 'main' | 'dashboard' | 'marketplace' | 'settings'
 
 export interface AITool {
-  name: 'claude-code' | 'vscode' | 'cursor'
-  displayName: string
-  detected: boolean
-  configPath?: string
-  version?: string
-  executable?: string
+  id: string
+  name: string
+  type: string
+  status: 'detected' | 'not_detected' | 'error'
 }
 
 export interface MCPServer {
   id: string
   name: string
-  company: 'github' | 'notion' | 'slack' | 'linear' | 'anthropic'
+  company: string
   description: string
   packageName: string
   installed: boolean
   enabledTools: string[]
   requiresAuth: boolean
   version?: string
+  status?: 'working' | 'partial' | 'failed'
+  lastVerified?: string
 }

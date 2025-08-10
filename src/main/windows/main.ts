@@ -22,6 +22,10 @@ export async function MainWindow() {
 
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false, // Disable sandbox to avoid the sandboxed_renderer errors
+      webSecurity: true,
     },
   })
 

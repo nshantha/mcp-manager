@@ -1,451 +1,592 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { Badge } from './ui/badge'
+import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
-import { CheckCircle, XCircle, Settings, ExternalLink, Loader2, Store, Key, AlertTriangle } from 'lucide-react'
-import { ServerInstructionsDialog } from './ServerInstructionsDialog'
-import { TokenManagementDialog } from './TokenManagementDialog'
-import type { AITool, MCPServer } from '../../shared/types'
-import { getDashboardCache, setDashboardCache } from '../lib/cache'
-import { getServerVerification, setServerVerification } from '../lib/statusCache'
-import { runWhenIdle } from '../lib/idle'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Badge } from './ui/badge'
+import {
+  Server,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Plus,
+  Settings,
+  Activity,
+  Wrench,
+  ArrowRight,
+  RefreshCw,
+  Clock,
+  TrendingUp,
+} from 'lucide-react'
+import { useAppState } from '../lib/serverState'
+import type { MCPServer } from '../lib/serverState'
 
-export function Dashboard() {
-  const [aiTools, setAiTools] = useState<AITool[]>([])
-  const [mcpServers, setMcpServers] = useState<MCPServer[]>([])
+interface AITool {
+  id: string
+  name: string
+  type: string
+  status: 'detected' | 'not_detected' | 'error'
+}
+
+interface QuickStats {
+  totalServers: number
+  workingServers: number
+  partialServers: number
+  failedServers: number
+  detectedTools: number
+  lastVerified: string
+}
+
+interface DashboardProps {
+  onViewChange: (
+    view:
+      | 'dashboard'
+      | 'servers'
+      | 'marketplace'
+      | 'tools'
+      | 'activity'
+      | 'settings'
+  ) => void
+}
+
+export function Dashboard({ onViewChange }: DashboardProps) {
+  const [quickStats, setQuickStats] = useState<QuickStats>({
+    totalServers: 0,
+    workingServers: 0,
+    partialServers: 0,
+    failedServers: 0,
+    detectedTools: 0,
+    lastVerified: 'Never',
+  })
   const [loading, setLoading] = useState(true)
-  const [configDialogServerId, setConfigDialogServerId] = useState<string | null>(null)
-  const [configDialogServerName, setConfigDialogServerName] = useState<string>('')
-  const [tokenDialogServerId, setTokenDialogServerId] = useState<string | null>(null)
-  const [tokenDialogServerName, setTokenDialogServerName] = useState<string>('')
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [isHealthCheckRunning, setIsHealthCheckRunning] = useState(false)
+  const {
+    servers,
+    aiTools,
+    simulateInstalledServers,
+    runHealthCheckOnAll,
+    refreshServersFromBackend,
+  } = useAppState()
 
-  useEffect(() => {
-    const cached = getDashboardCache()
-    if (cached) {
-      setAiTools(cached.aiTools)
-      setMcpServers(cached.mcpServers)
-      setLoading(false)
-      // Refresh in idle time to avoid scroll hitch
-      runWhenIdle(() => { void loadData(true) })
-    } else {
-      void loadData()
-    }
-  }, [])
-
-  const loadData = async (background = false) => {
+  // Navigation functions with feedback
+  const navigateToMarketplace = () => {
     try {
-      if (!background) setLoading(true)
-      
-      if (!window.electronAPI) {
-        console.error('Electron API not available')
-        return
-      }
-
-      console.log('Loading dashboard data...')
-      
-      // Stagger heavy calls to minimize main-thread bursts
-      const toolsPromise = window.electronAPI.detectAITools()
-      const serversPromise = window.electronAPI.getVettedServers()
-      const [toolsData, serversData] = await Promise.all([toolsPromise, serversPromise])
-      
-      console.log('Tools detected:', toolsData)
-      console.log('Servers loaded:', serversData)
-      
-      setAiTools(toolsData)
-      setMcpServers(serversData)
-      setDashboardCache(toolsData, serversData)
+      onViewChange('marketplace')
+      console.log('Navigating to Marketplace...')
     } catch (error) {
-      console.error('Failed to load dashboard data:', error)
-    } finally {
-      if (!background) setLoading(false)
+      console.error('Navigation failed:', error)
+      alert('Navigation failed. Please try again.')
     }
   }
 
-  const installedServers = mcpServers.filter(server => server.installed)
+  const navigateToServers = () => {
+    try {
+      onViewChange('servers')
+      console.log('Navigating to Servers...')
+    } catch (error) {
+      console.error('Navigation failed:', error)
+      alert('Navigation failed. Please try again.')
+    }
+  }
+
+  const navigateToTools = () => {
+    try {
+      onViewChange('tools')
+      console.log('Navigating to Tools...')
+    } catch (error) {
+      console.error('Navigation failed:', error)
+      alert('Navigation failed. Please try again.')
+    }
+  }
+
+  const navigateToActivity = () => {
+    try {
+      onViewChange('activity')
+      console.log('Navigating to Activity...')
+    } catch (error) {
+      console.error('Navigation failed:', error)
+      alert('Navigation failed. Please try again.')
+    }
+  }
+
+  // Health check functionality
+  const runHealthCheck = async () => {
+    if (isHealthCheckRunning) return
+
+    setIsHealthCheckRunning(true)
+    console.log('Running health check...')
+
+    try {
+      // Run actual health check on all installed servers
+      await runHealthCheckOnAll()
+
+      // Show success message
+      const installedCount = servers.filter(s => s.installed).length
+      if (installedCount > 0) {
+        alert(
+          `Health check completed! Verified ${installedCount} installed server(s).`
+        )
+      } else {
+        alert('Health check completed! No servers are currently installed.')
+      }
+      console.log('Health check completed successfully')
+    } catch (error) {
+      console.error('Health check failed:', error)
+      alert('Health check failed. Please try again.')
+    } finally {
+      setIsHealthCheckRunning(false)
+    }
+  }
+
+  // Refresh functionality with feedback
+  const handleRefresh = async () => {
+    try {
+      console.log('Refreshing data...')
+      // Refresh from backend
+      await refreshServersFromBackend()
+      alert('Data refreshed successfully!')
+      console.log('Data refresh completed')
+    } catch (error) {
+      console.error('Refresh failed:', error)
+      alert('Refresh failed. Please try again.')
+    }
+  }
+
+  useEffect(() => {
+    // Load initial data
+    const loadSampleData = () => {
+      // Set sample recent activity
+      setRecentActivity([
+        {
+          id: '1',
+          message: 'GitHub MCP Server status changed to working',
+          time: '2 minutes ago',
+        },
+        {
+          id: '2',
+          message: 'New AI tool detected: Claude',
+          time: '5 minutes ago',
+        },
+        {
+          id: '3',
+          message: 'File System MCP Server status verified',
+          time: '10 minutes ago',
+        },
+      ])
+
+      setLoading(false)
+    }
+
+    // Load initial data
+    loadSampleData()
+
+    // Set up 5-minute refresh interval
+    const refreshInterval = setInterval(loadSampleData, 5 * 60 * 1000)
+
+    return () => clearInterval(refreshInterval)
+  }, [])
+
+  // Update stats when servers change
+  useEffect(() => {
+    if (servers.length > 0) {
+      // Only count installed servers for stats
+      const installedServers = servers.filter(s => s.installed)
+      updateQuickStats(aiTools, installedServers)
+    }
+  }, [servers, aiTools])
+
+  const updateQuickStats = (tools: AITool[], servers: MCPServer[]) => {
+    const working = servers.filter(s => s.status === 'working').length
+    const partial = servers.filter(s => s.status === 'partial').length
+    const failed = servers.filter(s => s.status === 'failed').length
+    const detected = tools.filter(t => t.status === 'detected').length
+
+    const lastVerified =
+      servers.length > 0
+        ? servers.reduce((latest, server) => {
+            if (!server.lastVerified) return latest
+            const serverTime = new Date(server.lastVerified).getTime()
+            return serverTime > latest ? serverTime : latest
+          }, 0)
+        : 0
+
+    setQuickStats({
+      totalServers: servers.length,
+      workingServers: working,
+      partialServers: partial,
+      failedServers: failed,
+      detectedTools: detected,
+      lastVerified: lastVerified > 0 ? formatTimeAgo(lastVerified) : 'Never',
+    })
+  }
+
+  const formatTimeAgo = (timestamp: number) => {
+    const now = Date.now()
+    const diff = now - timestamp
+    const minutes = Math.floor(diff / (1000 * 60))
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+
+    if (minutes < 1) return 'Just now'
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.floor(hours / 24)}d ago`
+  }
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'working':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'partial':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-500" />
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-500" />
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'working':
+        return (
+          <Badge
+            variant="default"
+            className="bg-green-100 text-green-800 hover:bg-green-100"
+          >
+            Working
+          </Badge>
+        )
+      case 'partial':
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+          >
+            Partial
+          </Badge>
+        )
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>
+      default:
+        return <Badge variant="outline">Unknown</Badge>
+    }
+  }
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto p-8 space-y-8">
-        <div className="bg-card rounded-xl border p-6">
-          <div className="h-6 w-40 bg-muted rounded animate-pulse" />
-          <div className="h-4 w-72 bg-muted rounded mt-3 animate-pulse" />
-        </div>
-
-        <section className="bg-card rounded-xl border p-6">
-          <div className="h-5 w-56 bg-muted rounded mb-4 animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="border rounded-lg p-4 animate-pulse">
-                <div className="h-4 w-32 bg-muted rounded mb-3" />
-                <div className="h-3 w-48 bg-muted rounded" />
-              </div>
-            ))}
+      <div className="p-6">
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="space-y-2">
+            <div className="h-8 bg-muted animate-pulse rounded w-1/3" />
+            <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
           </div>
-        </section>
 
-        <section className="bg-card rounded-xl border p-6">
-          <div className="h-5 w-64 bg-muted rounded mb-4 animate-pulse" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="border rounded-lg p-5 animate-pulse">
-                <div className="h-4 w-60 bg-muted rounded mb-2" />
-                <div className="h-3 w-80 bg-muted rounded" />
-                <div className="h-8 w-full bg-muted rounded mt-4" />
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    )
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto p-8 space-y-8">
-      <div className="bg-card rounded-xl border p-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your MCP server installations and AI development tools
-        </p>
-      </div>
-
-      {/* AI Tools Status */}
-      <section className="bg-card rounded-xl border p-6">
-        <h2 className="text-xl font-semibold text-foreground mb-4">AI Development Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {aiTools.map((tool) => (
-            <ToolStatusCard key={tool.name} tool={tool} />
-          ))}
-        </div>
-      </section>
-
-      {/* MCP Servers Status */}
-      <section className="bg-card rounded-xl border p-6">
-        <h2 className="text-xl font-semibold text-foreground mb-4">Installed MCP Servers</h2>
-        {installedServers.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Store className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-medium text-foreground mb-2">No MCP servers installed</h3>
-            <p className="text-muted-foreground mb-4">Get started by installing MCP servers from the marketplace</p>
-            <Button 
-              onClick={() => window.location.hash = '#/marketplace'}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Browse Marketplace
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {installedServers.map((server) => (
-              <ServerStatusCard 
-                key={server.id} 
-                server={server} 
-                onConfigure={() => {
-                  console.log('Setting config dialog for server:', server.id)
-                  setConfigDialogServerId(server.id)
-                  setConfigDialogServerName(server.name)
-                }}
-                onManageToken={() => {
-                  setTokenDialogServerId(server.id)
-                  setTokenDialogServerName(server.name)
-                }}
+          {/* Stats skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div
+                key={`stats-skeleton-${Date.now()}-${i}`}
+                className="h-24 bg-muted animate-pulse rounded-lg"
               />
             ))}
           </div>
-        )}
-      </section>
 
-      <ServerInstructionsDialog
-        serverId={configDialogServerId}
-        serverName={configDialogServerName}
-        isOpen={configDialogServerId !== null}
-        onClose={() => setConfigDialogServerId(null)}
-      />
-
-      <TokenManagementDialog
-        serverId={tokenDialogServerId}
-        serverName={tokenDialogServerName}
-        isOpen={tokenDialogServerId !== null}
-        onClose={() => setTokenDialogServerId(null)}
-        onTokenSaved={() => {
-          // Refresh data when token is saved
-          loadData()
-        }}
-      />
-    </div>
-  )
-}
-
-function ToolStatusCard({ tool }: { tool: AITool }) {
-  return (
-    <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow bg-card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${tool.detected ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-          <h3 className="font-medium text-foreground">{tool.displayName}</h3>
-        </div>
-        {tool.detected ? (
-          <CheckCircle className="h-4 w-4 text-green-600" />
-        ) : (
-          <XCircle className="h-4 w-4 text-gray-400" />
-        )}
-      </div>
-      
-      <p className="text-sm text-muted-foreground mb-3">
-        {tool.detected ? 'Detected and available' : 'Not found on system'}
-      </p>
-      
-      <div className="space-y-2 text-sm">
-        {tool.version && (
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Version:</span>
-            <span className="px-2 py-1 bg-muted rounded text-foreground text-xs">{tool.version}</span>
+          {/* Content skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {Array.from({ length: 2 }, (_, i) => (
+              <div
+                key={`content-skeleton-${Date.now()}-${i}`}
+                className="h-64 bg-muted animate-pulse rounded-lg"
+              />
+            ))}
           </div>
-        )}
-        {tool.executable && (
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Path:</span>
-            <span className="font-mono text-xs text-muted-foreground truncate max-w-32" title={tool.executable}>
-              {tool.executable}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ServerStatusCard({ server, onConfigure, onManageToken }: { 
-  server: MCPServer; 
-  onConfigure: () => void;
-  onManageToken?: () => void;
-}) {
-  const getCompanyColor = (company: string) => {
-    const colors = {
-      github: 'bg-gray-900',
-      notion: 'bg-black', 
-      slack: 'bg-purple-600',
-      linear: 'bg-blue-600',
-      anthropic: 'bg-orange-600'
-    }
-    return colors[company as keyof typeof colors] || 'bg-gray-600'
-  }
-
-  return (
-    <div className="border rounded-lg p-5 hover:shadow-sm transition-shadow bg-card">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <div className={`w-6 h-6 ${getCompanyColor(server.company)} rounded flex items-center justify-center text-white text-xs font-bold`}>
-              {server.company.charAt(0).toUpperCase()}
-            </div>
-            <h3 className="font-medium text-foreground">{server.name}</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">{server.description}</p>
-        </div>
-        <div className="w-3 h-3 bg-green-500 rounded-full ml-3"></div>
-      </div>
-      
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Status:</span>
-          <EnhancedInstallationStatus server={server} />
-        </div>
-        
-        {server.requiresAuth && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Authentication:</span>
-            <AuthenticationStatus server={server} />
-          </div>
-        )}
-        
-        {server.enabledTools.length > 0 && (
-          <div>
-            <span className="text-sm text-muted-foreground block mb-2">Configured in:</span>
-            <div className="flex flex-wrap gap-1">
-              {server.enabledTools.map((tool) => (
-                <span key={tool} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                  {tool}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between pt-3 border-t">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                console.log('Configure button clicked for server:', server.id)
-                onConfigure()
-              }}
-              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-            >
-              <Settings className="h-3 w-3 mr-1" />
-              Configure
-            </Button>
-            {server.requiresAuth && onManageToken && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onManageToken}
-                className="text-green-600 border-green-200 hover:bg-green-50"
-              >
-                <Key className="h-3 w-3 mr-1" />
-                Token
-              </Button>
-            )}
-          </div>
-          {server.requiresAuth && (
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
-              Auth Required
-            </span>
-          )}
         </div>
       </div>
-    </div>
-  )
-}
-
-function EnhancedInstallationStatus({ server }: { server: MCPServer }) {
-  const [status, setStatus] = useState<{
-    packageAvailable: boolean;
-    configurationValid: boolean;
-    serverResponds: boolean;
-    overallStatus: 'working' | 'partial' | 'failed';
-    loading: boolean;
-  }>({ 
-    packageAvailable: false,
-    configurationValid: false,
-    serverResponds: false,
-    overallStatus: 'failed',
-    loading: true 
-  })
-
-  useEffect(() => {
-    verifyInstallation()
-  }, [server.id])
-
-  const verifyInstallation = async () => {
-    try {
-      // Use cached verification if fresh; otherwise refresh in background
-      const cached = getServerVerification(server.id)
-      if (cached) {
-        setStatus({ ...cached, loading: false })
-        return
-      }
-      setStatus(prev => ({ ...prev, loading: true }))
-      window.electronAPI?.verifyServerInstallation(server.id)
-        .then((verification: any) => {
-          setServerVerification(server.id, verification)
-          setStatus({ ...verification, loading: false })
-        })
-        .catch(() => setStatus({
-          packageAvailable: false,
-          configurationValid: false,
-          serverResponds: false,
-          overallStatus: 'failed',
-          loading: false
-        }))
-    } catch (error) {
-      console.error('Failed to verify installation:', error)
-      setStatus({ 
-        packageAvailable: false,
-        configurationValid: false,
-        serverResponds: false,
-        overallStatus: 'failed',
-        loading: false 
-      })
-    }
-  }
-
-  if (status.loading) {
-    return <Loader2 className="h-3 w-3 animate-spin" />
-  }
-
-  const getStatusDisplay = () => {
-    switch (status.overallStatus) {
-      case 'working':
-        return {
-          text: 'Working',
-          className: 'bg-green-100 text-green-800',
-          icon: <CheckCircle className="h-3 w-3" />,
-          tooltip: 'Package installed, configured, and responding'
-        }
-      case 'partial':
-        return {
-          text: 'Partial',
-          className: 'bg-yellow-100 text-yellow-800',
-          icon: <AlertTriangle className="h-3 w-3" />,
-          tooltip: `Configured but ${!status.packageAvailable ? 'package not installed' : 'server not responding'}`
-        }
-      default:
-        return {
-          text: 'Failed',
-          className: 'bg-red-100 text-red-800',
-          icon: <XCircle className="h-3 w-3" />,
-          tooltip: 'Installation verification failed'
-        }
-    }
-  }
-
-  const statusDisplay = getStatusDisplay()
-
-  return (
-    <span 
-      className={`px-2 py-1 ${statusDisplay.className} rounded text-xs font-medium flex items-center gap-1 cursor-help`}
-      title={statusDisplay.tooltip}
-    >
-      {statusDisplay.icon}
-      {statusDisplay.text}
-    </span>
-  )
-}
-
-function AuthenticationStatus({ server }: { server: MCPServer }) {
-  const [authStatus, setAuthStatus] = useState<{
-    configured: boolean
-    loading: boolean
-  }>({ configured: false, loading: true })
-
-  useEffect(() => {
-    checkAuthStatus()
-  }, [server.id])
-
-  const checkAuthStatus = async () => {
-    try {
-      setAuthStatus({ configured: false, loading: true })
-      const config = await window.electronAPI?.getServerConfiguration(server.id)
-      setAuthStatus({ 
-        configured: config?.status?.authConfigured || false, 
-        loading: false 
-      })
-    } catch (error) {
-      console.error('Failed to check auth status:', error)
-      setAuthStatus({ configured: false, loading: false })
-    }
-  }
-
-  if (authStatus.loading) {
-    return <Loader2 className="h-3 w-3 animate-spin" />
-  }
-
-  if (authStatus.configured) {
-    return (
-      <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium flex items-center gap-1">
-        <CheckCircle className="h-3 w-3" />
-        Configured
-      </span>
     )
   }
 
   return (
-    <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium flex items-center gap-1">
-      <AlertTriangle className="h-3 w-3" />
-      Token Required
-    </span>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            Welcome to MCP Manager
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Your central hub for managing Model Context Protocol servers
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => simulateInstalledServers()}
+          >
+            <Server className="h-4 w-4 mr-2" />
+            Load Demo Data
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Servers
+                </p>
+                <p className="text-2xl font-bold text-foreground">
+                  {quickStats.totalServers}
+                </p>
+              </div>
+              <Server className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Working
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {quickStats.workingServers}
+                </p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  AI Tools
+                </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {quickStats.detectedTools}
+                </p>
+              </div>
+              <Wrench className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Last Verified
+                </p>
+                <p className="text-sm font-medium text-foreground">
+                  {quickStats.lastVerified}
+                </p>
+              </div>
+              <Clock className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              variant="outline"
+              className="h-20 flex-col gap-2 hover:bg-muted/50"
+              onClick={navigateToMarketplace}
+            >
+              <Plus className="h-6 w-6 text-blue-500" />
+              <span className="font-medium">Install New Server</span>
+              <span className="text-xs text-muted-foreground">
+                Browse marketplace
+              </span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-20 flex-col gap-2 hover:bg-muted/50"
+              onClick={navigateToServers}
+            >
+              <Server className="h-6 w-6 text-green-500" />
+              <span className="font-medium">Manage Servers</span>
+              <span className="text-xs text-muted-foreground">
+                View all installed
+              </span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-20 flex-col gap-2 hover:bg-muted/50"
+              onClick={navigateToTools}
+            >
+              <Wrench className="h-6 w-6 text-purple-500" />
+              <span className="font-medium">Configure Tools</span>
+              <span className="text-xs text-muted-foreground">
+                AI tool settings
+              </span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* System Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Server Status */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Server Status</CardTitle>
+              <Button variant="ghost" size="sm" onClick={navigateToServers}>
+                View All <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {servers.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <Server className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No servers installed yet</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={navigateToMarketplace}
+                >
+                  Install Your First Server
+                </Button>
+              </div>
+            ) : (
+              servers
+                .filter(server => server.installed)
+                .slice(0, 3)
+                .map(server => (
+                  <div
+                    key={server.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                  >
+                    <div className="flex items-center gap-3">
+                      {getStatusIcon(server.status || 'failed')}
+                      <div>
+                        <h4 className="font-medium text-foreground">
+                          {server.name}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {server.company}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(server.status || 'failed')}
+                      <Button variant="ghost" size="sm">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Recent Activity</CardTitle>
+              <Button variant="ghost" size="sm" onClick={navigateToActivity}>
+                View All <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentActivity.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No recent activity</p>
+                </div>
+              ) : (
+                recentActivity.map((activity, index) => (
+                  <div
+                    key={`activity-${activity.id || index}`}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                  >
+                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                    <div className="flex-1">
+                      <p className="text-sm text-foreground">
+                        {activity.message}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.time}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* System Health */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">System Health</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {quickStats.failedServers === 0 ? (
+                <CheckCircle className="h-6 w-6 text-green-500" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-yellow-500" />
+              )}
+              <div>
+                <h3 className="font-medium text-foreground">
+                  {quickStats.failedServers === 0
+                    ? 'All systems operational'
+                    : 'Some issues detected'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {quickStats.failedServers === 0
+                    ? `${quickStats.workingServers} servers working properly`
+                    : `${quickStats.failedServers} server(s) need attention`}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runHealthCheck}
+              disabled={isHealthCheckRunning}
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              {isHealthCheckRunning ? 'Running...' : 'Run Health Check'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

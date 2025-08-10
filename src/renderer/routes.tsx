@@ -1,9 +1,13 @@
-import { Route } from 'react-router-dom'
-
-import { Router } from 'lib/electron-router-dom'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 
 import { App } from './components/App'
 
 export function AppRoutes() {
-  return <Router main={<Route path="/" element={<App />} />} />
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<App />} />
+      </Routes>
+    </Router>
+  )
 }

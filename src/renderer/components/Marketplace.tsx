@@ -1,96 +1,176 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { useState, useEffect } from 'react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from './ui/card'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { CheckCircle, Download, Loader2, Shield } from 'lucide-react'
 import { ServerInstructionsDialog } from './ServerInstructionsDialog'
-import type { MCPServer } from '../../shared/types'
+import { useAppState } from '../lib/serverState'
 
 export function Marketplace() {
-  const [servers, setServers] = useState<MCPServer[]>([])
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<string | null>(null)
   const [uninstalling, setUninstalling] = useState<string | null>(null)
-  const [progressByServer, setProgressByServer] = useState<Record<string, { value: number; label: string }>>({})
-  const [configDialogServerId, setConfigDialogServerId] = useState<string | null>(null)
-  const [configDialogServerName, setConfigDialogServerName] = useState<string>('')
+  const [progressByServer, setProgressByServer] = useState<
+    Record<string, { value: number; label: string }>
+  >({})
+  const [configDialogServerId, setConfigDialogServerId] = useState<
+    string | null
+  >(null)
+  const [configDialogServerName, setConfigDialogServerName] =
+    useState<string>('')
+
+  const { servers, installServer, uninstallServer } = useAppState()
 
   useEffect(() => {
-    loadServers()
+    // Simulate loading delay
+    const timer = setTimeout(() => setLoading(false), 500)
+    return () => clearTimeout(timer)
   }, [])
-
-  const loadServers = async () => {
-    try {
-      setLoading(true)
-      const serversData = await window.electronAPI?.getVettedServers() || []
-      setServers(serversData)
-    } catch (error) {
-      console.error('Failed to load marketplace data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleInstall = async (serverId: string) => {
     try {
       setInstalling(serverId)
-      setProgressByServer(prev => ({ ...prev, [serverId]: { value: 8, label: 'Checking…' } }))
+      setProgressByServer(prev => ({
+        ...prev,
+        [serverId]: { value: 8, label: 'Checking…' },
+      }))
       console.log('Installing server:', serverId)
-      
-      if (!window.electronAPI) {
-        console.error('Electron API not available')
-        return
-      }
-      
-      setProgressByServer(prev => ({ ...prev, [serverId]: { value: 45, label: 'Installing…' } }))
-      const result = await window.electronAPI.installMCPServer(serverId, {})
+
+      setProgressByServer(prev => ({
+        ...prev,
+        [serverId]: { value: 45, label: 'Installing…' },
+      }))
+
+      // Use the centralized state manager's install method which calls the backend
+      const result = await installServer(serverId, {})
       console.log('Install result:', result)
-      
+
       if (result?.success) {
         // Kick off verification in background to avoid blocking UI
-        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 75, label: 'Verifying…' } }))
+        setProgressByServer(prev => ({
+          ...prev,
+          [serverId]: { value: 75, label: 'Verifying…' },
+        }))
         window.electronAPI?.verifyServerInstallation?.(serverId).finally(() => {
           // No-op; we still refresh the list below
         })
-        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Done' } }))
-        // Refresh the server list to show updated installation status
-        await loadServers()
-        // Briefly keep the 100% bar visible, then clear
-        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 700)
+        // Small delay to show progress animation
+        await new Promise(resolve => setTimeout(resolve, 300))
+        setProgressByServer(prev => ({
+          ...prev,
+          [serverId]: { value: 100, label: 'Done' },
+        }))
+
+        // Wait for completion animation, then clear all states together
+        setTimeout(() => {
+          setProgressByServer(prev => {
+            const n = { ...prev }
+            delete n[serverId]
+            return n
+          })
+          setInstalling(null)
+        }, 700)
       } else {
         console.error('Installation failed:', result?.message)
         alert(`Installation failed: ${result?.message || 'Unknown error'}`)
-        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Failed' } }))
-        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 1200)
+        setProgressByServer(prev => ({
+          ...prev,
+          [serverId]: { value: 100, label: 'Failed' },
+        }))
+        setTimeout(() => {
+          setProgressByServer(prev => {
+            const n = { ...prev }
+            delete n[serverId]
+            return n
+          })
+          setInstalling(null)
+        }, 1200)
       }
     } catch (error) {
       console.error('Failed to install server:', error)
       alert(`Failed to install server: ${error}`)
-    } finally {
-      setInstalling(null)
+      setProgressByServer(prev => ({
+        ...prev,
+        [serverId]: { value: 100, label: 'Error' },
+      }))
+      setTimeout(() => {
+        setProgressByServer(prev => {
+          const n = { ...prev }
+          delete n[serverId]
+          return n
+        })
+        setInstalling(null)
+      }, 1200)
     }
   }
 
   const handleUninstall = async (serverId: string) => {
     try {
       setUninstalling(serverId)
-      setProgressByServer(prev => ({ ...prev, [serverId]: { value: 10, label: 'Removing…' } }))
-      const result = await window.electronAPI?.uninstallMCPServer(serverId)
-      
+      setProgressByServer(prev => ({
+        ...prev,
+        [serverId]: { value: 10, label: 'Removing…' },
+      }))
+
+      // Use the centralized state manager's uninstall method which calls the backend
+      const result = await uninstallServer(serverId, { removePackage: true })
+
       if (result?.success) {
-        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 70, label: 'Cleaning…' } }))
-        await loadServers()
-        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Done' } }))
-        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 700)
+        setProgressByServer(prev => ({
+          ...prev,
+          [serverId]: { value: 70, label: 'Cleaning…' },
+        }))
+        // Small delay to show progress animation
+        await new Promise(resolve => setTimeout(resolve, 300))
+        setProgressByServer(prev => ({
+          ...prev,
+          [serverId]: { value: 100, label: 'Done' },
+        }))
+
+        // Wait for completion animation, then clear all states together
+        setTimeout(() => {
+          setProgressByServer(prev => {
+            const n = { ...prev }
+            delete n[serverId]
+            return n
+          })
+          setUninstalling(null)
+        }, 700)
       } else {
         console.error('Uninstallation failed:', result?.message)
-        setProgressByServer(prev => ({ ...prev, [serverId]: { value: 100, label: 'Failed' } }))
-        setTimeout(() => setProgressByServer(prev => { const n = { ...prev }; delete n[serverId]; return n }), 1200)
+        setProgressByServer(prev => ({
+          ...prev,
+          [serverId]: { value: 100, label: 'Failed' },
+        }))
+        setTimeout(() => {
+          setProgressByServer(prev => {
+            const n = { ...prev }
+            delete n[serverId]
+            return n
+          })
+          setUninstalling(null)
+        }, 1200)
       }
     } catch (error) {
       console.error('Failed to uninstall server:', error)
-    } finally {
-      setUninstalling(null)
+      setProgressByServer(prev => ({
+        ...prev,
+        [serverId]: { value: 100, label: 'Error' },
+      }))
+      setTimeout(() => {
+        setProgressByServer(prev => {
+          const n = { ...prev }
+          delete n[serverId]
+          return n
+        })
+        setUninstalling(null)
+      }, 1200)
     }
   }
 
@@ -123,10 +203,10 @@ export function Marketplace() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {servers.map((server) => (
-          <ServerCard 
-            key={server.id} 
-            server={server} 
+        {servers.map(server => (
+          <ServerCard
+            key={server.id}
+            server={server}
             onInstall={() => handleInstall(server.id)}
             onUninstall={() => handleUninstall(server.id)}
             onConfigure={() => {
@@ -151,7 +231,7 @@ export function Marketplace() {
 }
 
 interface ServerCardProps {
-  server: MCPServer
+  server: ReturnType<typeof useAppState>['servers'][0]
   onInstall: () => void
   onUninstall: () => void
   onConfigure: () => void
@@ -160,14 +240,22 @@ interface ServerCardProps {
   progress?: { value: number; label: string }
 }
 
-function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, uninstalling, progress }: ServerCardProps) {
+function ServerCard({
+  server,
+  onInstall,
+  onUninstall,
+  onConfigure,
+  installing,
+  uninstalling,
+  progress,
+}: ServerCardProps) {
   const getCompanyBadgeColor = (company: string) => {
     const colors = {
       github: 'bg-gray-900 text-white',
-      notion: 'bg-black text-white', 
+      notion: 'bg-black text-white',
       slack: 'bg-purple-600 text-white',
       linear: 'bg-blue-600 text-white',
-      anthropic: 'bg-orange-600 text-white'
+      anthropic: 'bg-orange-600 text-white',
     }
     return colors[company as keyof typeof colors] || 'bg-gray-600 text-white'
   }
@@ -179,7 +267,7 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
       notion: '📝',
       slack: '💬',
       linear: '📐',
-      anthropic: '🤖'
+      anthropic: '🤖',
     }
     return icons[company as keyof typeof icons] || '🔧'
   }
@@ -187,8 +275,11 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
   return (
     <Card className="h-full flex flex-col relative overflow-hidden">
       {/* Thin top progress bar on the card when active */}
-      {(progress && (installing || uninstalling)) && (
-        <div className="absolute top-0 left-0 h-0.5 bg-blue-600 transition-all" style={{ width: `${Math.min(100, Math.max(0, progress.value))}%` }} />
+      {progress && (installing || uninstalling) && (
+        <div
+          className="absolute top-0 left-0 h-0.5 bg-blue-600 transition-all"
+          style={{ width: `${Math.min(100, Math.max(0, progress.value))}%` }}
+        />
       )}
       <CardHeader>
         <div className="flex items-start justify-between">
@@ -209,13 +300,13 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="flex-1 flex flex-col justify-between">
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground font-mono">
             {server.packageName}
           </div>
-          
+
           {server.requiresAuth && (
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">
@@ -228,7 +319,7 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
             <div>
               <span className="text-sm font-medium">Enabled in:</span>
               <div className="flex flex-wrap gap-1 mt-1">
-                {server.enabledTools.map((tool) => (
+                {server.enabledTools.map(tool => (
                   <Badge key={tool} variant="outline" className="text-xs">
                     {tool}
                   </Badge>
@@ -241,14 +332,14 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
         <div className="pt-4 mt-auto">
           {server.installed ? (
             <div className="space-y-2">
-              <Button 
-                variant="destructive" 
-                size="sm" 
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={onUninstall}
                 disabled={installing || uninstalling}
                 className="w-full"
               >
-                {(installing || uninstalling) ? (
+                {installing || uninstalling ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {uninstalling ? 'Uninstalling…' : 'Working…'}
@@ -257,9 +348,9 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
                   'Uninstall'
                 )}
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="w-full"
                 onClick={onConfigure}
               >
@@ -267,7 +358,7 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
               </Button>
             </div>
           ) : (
-            <Button 
+            <Button
               onClick={onInstall}
               disabled={installing}
               className="w-full"
@@ -285,10 +376,15 @@ function ServerCard({ server, onInstall, onUninstall, onConfigure, installing, u
               )}
             </Button>
           )}
-          {(progress && (installing || uninstalling)) && (
+          {progress && (installing || uninstalling) && (
             <div className="mt-2">
               <div className="h-1 w-full bg-gray-200 rounded overflow-hidden">
-                <div className="h-1 bg-blue-600 transition-all" style={{ width: `${Math.min(100, Math.max(0, progress.value))}%` }} />
+                <div
+                  className="h-1 bg-blue-600 transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, progress.value))}%`,
+                  }}
+                />
               </div>
               <div className="text-xs text-gray-500 mt-1">{progress.label}</div>
             </div>

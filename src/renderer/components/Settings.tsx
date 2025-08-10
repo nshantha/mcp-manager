@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { useState, useEffect } from 'react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from './ui/card'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Settings as SettingsIcon, Shield, Bell, Palette } from 'lucide-react'
@@ -14,7 +20,7 @@ export function Settings() {
   const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState<AppSettings>({
     autoUpdate: true,
-    notifications: true
+    notifications: true,
   })
   const [loading, setLoading] = useState(true)
 
@@ -38,7 +44,7 @@ export function Settings() {
   const updateSetting = async (key: keyof AppSettings, value: any) => {
     const newSettings = { ...settings, [key]: value }
     setSettings(newSettings)
-    
+
     try {
       await window.electronAPI?.updateAppSettings(newSettings)
     } catch (error) {
@@ -127,7 +133,9 @@ export function Settings() {
               <Button
                 variant={settings.notifications ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => updateSetting('notifications', !settings.notifications)}
+                onClick={() =>
+                  updateSetting('notifications', !settings.notifications)
+                }
               >
                 {settings.notifications ? 'On' : 'Off'}
               </Button>
@@ -157,7 +165,9 @@ export function Settings() {
               <Button
                 variant={settings.autoUpdate ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => updateSetting('autoUpdate', !settings.autoUpdate)}
+                onClick={() =>
+                  updateSetting('autoUpdate', !settings.autoUpdate)
+                }
               >
                 {settings.autoUpdate ? 'On' : 'Off'}
               </Button>
@@ -166,20 +176,28 @@ export function Settings() {
             <div className="pt-3 border-t">
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="h-4 w-4 text-green-600" />
-                <span className="font-medium text-green-700">Security Status</span>
+                <span className="font-medium text-green-700">
+                  Security Status
+                </span>
               </div>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center justify-between">
                   <span>Vetted Servers Only:</span>
-                  <Badge variant="default" className="bg-green-600">Enabled</Badge>
+                  <Badge variant="default" className="bg-green-600">
+                    Enabled
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Secure IPC:</span>
-                  <Badge variant="default" className="bg-green-600">Active</Badge>
+                  <Badge variant="default" className="bg-green-600">
+                    Active
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Context Isolation:</span>
-                  <Badge variant="default" className="bg-green-600">Enabled</Badge>
+                  <Badge variant="default" className="bg-green-600">
+                    Enabled
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -212,9 +230,12 @@ export function Settings() {
                 </div>
               </div>
             </div>
-            
+
             <div className="pt-3 border-t text-xs text-muted-foreground">
-              <p>Universal MCP Manager - Enterprise-grade management for Model Context Protocol servers</p>
+              <p>
+                Universal MCP Manager - Enterprise-grade management for Model
+                Context Protocol servers
+              </p>
             </div>
           </CardContent>
         </Card>

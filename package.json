@@ -28,7 +28,8 @@
     "release": "electron-builder --publish always",
     "clean:dev": "rimraf ./node_modules/.dev",
     "lint": "biome lint --no-errors-on-unmatched",
-    "lint:fix": "biome lint --write --no-errors-on-unmatched"
+    "lint:fix": "biome lint --write --no-errors-on-unmatched",
+    "prepare": "husky"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.2",
@@ -36,7 +37,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "detect-installed": "^2.0.4",
-    "electron-router-dom": "^2.1.0",
     "lucide-react": "^0.477.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -52,6 +52,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/semver": "^7.5.8",
+    "@types/which": "^3.0.4",
     "@vitejs/plugin-react": "^4.0.4",
     "code-inspector-plugin": "^0.20.1",
     "cross-env": "^7.0.3",
@@ -59,6 +60,8 @@
     "electron-builder": "^25.1.8",
     "electron-extension-installer": "^1.2.0",
     "electron-vite": "^3.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "npm-run-all": "^4.1.5",
     "open": "^10.1.0",
     "rimraf": "^6.0.1",
@@ -69,5 +72,13 @@
     "typescript": "^5.1.6",
     "vite": "^6.2.0",
     "vite-tsconfig-paths": "^5.1.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "biome lint --write",
+      "biome format --write",
+      "bash -c 'npx tsc --noEmit'"
+    ],
+    "*.{json,md}": ["biome format --write"]
   }
 }

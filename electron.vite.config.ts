@@ -7,7 +7,6 @@ import injectProcessEnvPlugin from 'rollup-plugin-inject-process-env'
 import tsconfigPathsPlugin from 'vite-tsconfig-paths'
 import reactPlugin from '@vitejs/plugin-react'
 
-import { settings } from './src/lib/electron-router-dom'
 import { main, resources } from './package.json'
 
 const [nodeModules, devFolder] = normalize(dirname(main)).split(/\/|\\/g)
@@ -49,7 +48,7 @@ export default defineConfig({
     },
 
     server: {
-      port: settings.port,
+      port: 4927,
     },
 
     plugins: [

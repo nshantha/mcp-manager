@@ -1,0 +1,18 @@
+#\!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Validate commit message format
+commit_regex="^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)(\(.+\))?: .{1,50}"
+
+if \! grep -qE "$commit_regex" "$1"; then
+    echo "Invalid commit message format\!"
+    echo ""
+    echo "The commit message must follow the format:"
+    echo "<type>: <description>"
+    echo ""
+    echo "Types: feat, fix, docs, style, refactor, perf, test, chore, build, ci"
+    echo "Description: Max 50 characters"
+    echo ""
+    echo "Example: feat: add MCP server health monitoring"
+    exit 1
+fi

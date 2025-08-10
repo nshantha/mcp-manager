@@ -1,5 +1,4 @@
-import React from 'react'
-import { X } from 'lucide-react'
+import type React from 'react'
 
 interface DialogProps {
   open: boolean
@@ -11,16 +10,22 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 flex items-center justify-center p-4">
         {/* Backdrop */}
         <div
           className="fixed inset-0 bg-background/80 backdrop-blur-sm"
           onClick={() => onOpenChange(false)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') {
+              onOpenChange(false)
+            }
+          }}
+          tabIndex={-1}
         />
 
         {/* Dialog content */}
-        <div className="relative z-[10000]">
+        <div className="relative z-10 w-full max-w-md bg-background border rounded-lg shadow-lg">
           {children}
         </div>
       </div>
@@ -33,7 +38,10 @@ interface DialogContentProps {
   className?: string
 }
 
-export function DialogContent({ children, className = '' }: DialogContentProps) {
+export function DialogContent({
+  children,
+  className = '',
+}: DialogContentProps) {
   return (
     <div
       className={`
@@ -55,11 +63,7 @@ interface DialogHeaderProps {
 }
 
 export function DialogHeader({ children }: DialogHeaderProps) {
-  return (
-    <div className="mb-6">
-      {children}
-    </div>
-  )
+  return <div className="mb-6">{children}</div>
 }
 
 interface DialogTitleProps {
@@ -69,7 +73,9 @@ interface DialogTitleProps {
 
 export function DialogTitle({ children, className = '' }: DialogTitleProps) {
   return (
-    <h2 className={`text-lg font-semibold leading-none tracking-tight ${className}`}>
+    <h2
+      className={`text-lg font-semibold leading-none tracking-tight ${className}`}
+    >
       {children}
     </h2>
   )
@@ -80,9 +86,5 @@ interface DialogDescriptionProps {
 }
 
 export function DialogDescription({ children }: DialogDescriptionProps) {
-  return (
-    <p className="text-sm text-muted-foreground mt-2">
-      {children}
-    </p>
-  )
+  return <p className="text-sm text-muted-foreground mt-2">{children}</p>
 }
